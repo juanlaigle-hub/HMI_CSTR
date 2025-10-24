@@ -1,0 +1,97 @@
+# Fundamentals of the CSTR (Continuous Stirred Tank Reactor)
+
+## General Description
+A Continuous Stirred Tank Reactor (CSTR) is a type of chemical reactor where reactants enter continuously and products exit continuously, maintaining constant volume. The agitator ensures perfect mixing, resulting in uniform concentrations and temperatures throughout the reactor.
+
+## Chemical Reaction
+The simulated reaction is first-order irreversible: **A → B**
+
+- **Type**: Exothermic reaction (releases heat)
+- **Kinetics**: r_A = k * C_A, where k follows the Arrhenius law: k = k0 * exp(-Ea/RT)
+- **Reaction enthalpy**: ΔH_r = -60,000 J/mol (negative = exothermic)
+
+## Fundamental Balances
+
+### Mass Balance
+For component A:
+```
+dC_A/dt = (F/V) * (C_A_in - C_A) - r_A
+```
+Where:
+- F: Inlet volumetric flow [L/min]
+- V: Reactor volume [L]
+- C_A_in: Inlet concentration of A [mol/L]
+- C_A: Concentration in the reactor [mol/L]
+- r_A: Reaction rate [mol/(L·min)]
+
+### Energy Balance
+For the reactor:
+```
+ρ·Cp·V · dT/dt = F·ρ·Cp·(T_in - T) + r_A·(-ΔH_r)·V - U·A·(T - T_j)
+```
+
+For the cooling jacket:
+```
+ρ_j·Cp_j·V_j · dT_j/dt = F_j·ρ_j·Cp_j·(T_j_in - T_j) + U·A·(T - T_j)
+```
+
+Where:
+- T: Reactor temperature [K]
+- T_j: Jacket temperature [K]
+- U: Global heat transfer coefficient [J/(min·L·K)]
+- A: Heat transfer area [m²]
+
+## Engineering Concepts
+
+### Reynolds Number (Re)
+Indicates flow regime:
+- Re < 10: Laminar
+- 10 < Re < 10,000: Transition
+- Re > 10,000: Turbulent
+
+### Damköhler Number (Da)
+Ratio of reaction time to residence time:
+```
+Da = τ · k
+```
+Where τ = V/F is the residence time.
+
+### Conversion and Yield
+- Conversion of A: X_A = (C_A_in - C_A_out)/C_A_in
+- Yield: Depends on selectivity and conversion
+
+## Recommended Operation Case
+
+### Scenario: Controlled increase in inlet temperature to increase conversion
+**Description**: To increase reactor conversion while keeping temperature below 320 K and avoiding warnings, the feed temperature is increased by 5 K in a controlled manner.
+
+**Expected Behavior**:
+1. Reactor temperature (T) increases moderately
+2. Reaction rate (k) increases, increasing conversion
+3. Outlet concentration (C_A) decreases (conversion increases)
+4. Heat generated increases, but is controlled with cooling
+
+**Operator Actions**:
+1. **Monitoring**: Observe increase in T and conversion
+2. **Response**: Increase refrigerant flow (F_j) to 30 L/min to keep T < 320 K
+3. **Fine-tuning**: Adjust T_j_in if necessary to control T
+4. **Preventive Control**: Keep T below 320 K to avoid warnings
+5. **Stabilization**: Balance production (conversion) and safety (temperature)
+
+**Learning Objectives**:
+- Optimize conversion without compromising safety
+- Practice temperature control with cooling
+- Understand the trade-off between production and stability
+- Learn safe operations in exothermic reactors
+
+## System Parameters
+- Reactor volume: 100 L
+- Density: 1000 g/L
+- Heat capacity: 4.187 J/(g·K)
+- U·A coefficient: 800 J/(min·K)
+- Activation energy: 83,140 J/mol
+- Pre-exponential factor: 3.87 × 10^12 min⁻¹ (adjusted for consistency)
+
+This simulation allows training operators in chemical reactor control under realistic conditions with measurement noise.
+
+**Note**: The graphical interface displays conversion of A instead of outlet concentration for better visualization of reaction changes.
