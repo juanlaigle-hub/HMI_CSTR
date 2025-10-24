@@ -10,7 +10,7 @@ This is the updated version of the Continuous Stirred Tank Reactor (CSTR) Human-
 
 ## How to Use
 
-1. Download the `CSTR_HMI_v1.1.0.exe` file.
+1. Download the `CSTR_v1.1.0.exe` file.
 2. Double-click the executable to run it.
 3. The application will automatically open your web browser to the HMI interface at `http://127.0.0.1:8050`.
 4. Use the controls to simulate and train on CSTR operations:
@@ -52,3 +52,4 @@ See `CSTR_Fundamentals.md` for detailed information about:
 ## License
 
 Important: NO license is required.
+
