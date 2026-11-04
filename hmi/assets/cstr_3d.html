@@ -118,6 +118,12 @@ main{display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:12px}
 .tl{display:flex; gap:12px; font-size:.72rem; color:var(--muted); flex-wrap:wrap}
 .tl i{display:inline-block; width:14px; height:2px; vertical-align:middle; margin-right:4px}
 .note{font-size:.72rem; color:var(--muted); margin:0}
+/* Modo embebido en el HMI de Dash (?mode=hmi): solo el visor 3D */
+html.embed,html.embed body{height:100%}
+html.embed body{padding:0; overflow:hidden}
+html.embed header.bar,html.embed .panel{display:none}
+html.embed main{display:block; height:100%}
+html.embed .view{height:100%; border:0; border-radius:0}
 @media (prefers-reduced-motion: reduce){ .pill[data-s="crit"] i{animation:none} }
 </style>
 </head>
@@ -195,11 +201,18 @@ main{display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:12px}
   </aside>
 </main>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<!-- three.js r128: copia local (funciona sin internet) con respaldo en CDN -->
+<script src="vendor/three.min.js"></script>
+<script>window.THREE||document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>')</script>
+<script src="vendor/OrbitControls.js"></script>
+<script>(window.THREE&&THREE.OrbitControls)||document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"><\/script>')</script>
 <script>
 (function(){
 "use strict";
+// En el HMI de Dash la simulación corre en Python y llega aquí por postMessage.
+const EMBED=new URLSearchParams(location.search).get('mode')==='hmi';
+if(EMBED) document.documentElement.classList.add('embed');
+let ext=null, extRate=0, extWall=0;
 /* ───────────── Modelo del proceso ───────────── */
 const P = {V:100, rho:1000, Cp:4.187, dH:-60000, Ea:83140, R:8.314, CAin:4, Vj:20};
 // Punto de operación base: F=10 L/min, Fj=20 L/min, Tj,in=290 K, T_in=308 K → T=310 K, X_A=0.15
@@ -239,6 +252,16 @@ function integrate(dtMin){
   }
 }
 resetState();
+
+window.addEventListener('message',e=>{
+  const m=e.data; if(!m||m.type!=='cstr-state') return;
+  const now=performance.now();
+  if(ext&&m.t>ext.t&&extWall) extRate=clamp((m.t-ext.t)/((now-extWall)/1000),0,20); else if(ext&&m.t<ext.t){extRate=0; ext=null; Object.assign(S,{CA:m.CA,T:m.T,Tj:m.Tj,t:m.t}); seedMolecules();}
+  if(ext&&m.t===ext.t) extRate=0;
+  extWall=now; ext=m;
+  Object.assign(S,{CA:m.CA,T:m.T,Tj:m.Tj,t:m.t});
+  Object.assign(U,{F:m.F,Fj:m.Fj,Tjin:m.Tjin,N:m.N,dTin:m.dTin,foul:m.fouling});
+});
 
 /* ───────────── Utilidades ───────────── */
 const $=id=>document.getElementById(id);
@@ -510,7 +533,7 @@ const clock=new THREE.Clock(); let uiAcc=0, trendAcc=0, time=0, beaconPhase=0;
 const cTmp=new THREE.Color(), cTmp2=new THREE.Color(), cTmp3=new THREE.Color();
 function frame(){
   const dt=Math.min(clock.getDelta(),0.1); time+=dt;
-  const simDt=dt*speed; if(simDt>0) integrate(simDt);
+  const simDt=EMBED?dt*extRate:dt*speed; if(!EMBED&&simDt>0) integrate(simDt);
   const d=deriv(S); const X=1-S.CA/P.CAin; const Tin=Tin0+U.dTin;
 
   // Colores por temperatura
@@ -549,7 +572,7 @@ function frame(){
   // Lecturas (4 Hz, con ruido de medida)
   uiAcc+=dt; trendAcc+=dt;
   if(uiAcc>0.25){uiAcc=0;
-    const Tm=S.T+gauss()*0.3, Tjm=S.Tj+gauss()*0.3, Xm=clamp(X+gauss()*0.004,0,1);
+    const Tm=ext?ext.Tm:S.T+gauss()*0.3, Tjm=ext?ext.Tjm:S.Tj+gauss()*0.3, Xm=ext?ext.Xm:clamp(X+gauss()*0.004,0,1);
     $('oT').textContent=Tm.toFixed(1)+' K'; $('oTj').textContent=Tjm.toFixed(1)+' K'; $('oX').textContent=(Xm*100).toFixed(1)+' %'; $('oTin').textContent=Tin.toFixed(1)+' K';
     $('cT').dataset.s=lvl===2?'crit':lvl===1?'warn':'';
     const qg=d.Qg/60000, qr=d.Qr/60000, qmax=Math.max(30,qg,qr);
@@ -567,6 +590,7 @@ function frame(){
 }
 resize(); applyTheme();
 requestAnimationFrame(frame);
+if(EMBED&&window.parent!==window) window.parent.postMessage({type:'cstr-3d-ready'},'*');
 })();
 </script>
 </body>
