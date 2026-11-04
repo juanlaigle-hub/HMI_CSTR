@@ -1,0 +1,773 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cuadricóptero Q-450</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: banco de pruebas de vuelo — visor 3D grande, consola de mando a la derecha, cuaderno de ecuaciones desplegable. Naranja de seguridad aeronáutica para el dron y los mandos; cian para referencias. */
+:root{
+  --bg:#e9ecef; --panel:#f6f7f8; --raise:#ffffff; --fg:#14191e; --muted:#5a6570; --line:#cfd5db;
+  --accent:#d9480f; --accent-ink:#ffffff; --ref:#0a7ea4; --hi:#c2255c; --hi-bg:#fde8ef;
+  --ok:#2b8a3e; --warn:#c77700;
+  --sky:#dfe6ec; --ground:#cdd4d9; --grid1:#9fabb4; --grid2:#bcc5cc;
+  --c-x:#d9480f; --c-y:#0a7ea4; --c-z:#6741d9;
+  --f-display:"Chakra Petch","Bahnschrift","Arial Narrow",sans-serif;
+  --f-body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1317; --panel:#161b20; --raise:#1d2329; --fg:#e4e9ee; --muted:#8e9aa6; --line:#2b333b;
+    --accent:#ff7a3d; --accent-ink:#1a0d05; --ref:#4cc3ea; --hi:#ff6b9d; --hi-bg:#3a1a27;
+    --ok:#51cf66; --warn:#fcc419;
+    --sky:#141a20; --ground:#1a2027; --grid1:#36414b; --grid2:#232b33;
+    --c-x:#ff7a3d; --c-y:#4cc3ea; --c-z:#a78bfa;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1317; --panel:#161b20; --raise:#1d2329; --fg:#e4e9ee; --muted:#8e9aa6; --line:#2b333b;
+  --accent:#ff7a3d; --accent-ink:#1a0d05; --ref:#4cc3ea; --hi:#ff6b9d; --hi-bg:#3a1a27;
+  --ok:#51cf66; --warn:#fcc419;
+  --sky:#141a20; --ground:#1a2027; --grid1:#36414b; --grid2:#232b33;
+  --c-x:#ff7a3d; --c-y:#4cc3ea; --c-z:#a78bfa;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 var(--f-body);
+  padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px));
+  padding-block:12px 16px; display:flex; flex-direction:column; gap:12px}
+@media (min-width: 1000px){ html,body{height:100%} body{overflow:hidden} main{flex:1; min-height:0} }
+
+header.bar{display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px}
+.brand{min-width:0}
+.brand h1{margin:0; font:700 1.6rem/1 var(--f-display); letter-spacing:.02em; text-wrap:balance}
+.brand h1 em{font-style:normal; color:var(--accent)}
+.brand p{margin:2px 0 0; color:var(--muted); font-size:.85rem}
+.spacer{flex:1}
+.chip{font:600 .78rem var(--f-display); letter-spacing:.08em; text-transform:uppercase; padding:4px 10px; border-radius:999px; border:1.5px solid var(--line); color:var(--muted); display:inline-flex; gap:7px; align-items:center; background:var(--panel)}
+.chip i{width:8px; height:8px; border-radius:50%; background:var(--muted)}
+.chip[data-s="fly"]{border-color:var(--ok); color:var(--ok)} .chip[data-s="fly"] i{background:var(--ok)}
+.chip[data-s="sat"]{border-color:var(--warn); color:var(--warn)} .chip[data-s="sat"] i{background:var(--warn)}
+.clock{font:.82rem var(--f-mono); color:var(--muted); font-variant-numeric:tabular-nums}
+.seg{display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; background:var(--panel)}
+.seg button{font:500 .8rem var(--f-body); border:0; background:transparent; color:var(--fg); padding:6px 10px; cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--fg); color:var(--bg)}
+.mathbtn{font:600 .9rem var(--f-display); letter-spacing:.04em; border:1.5px solid var(--accent); color:var(--accent); background:transparent; border-radius:8px; padding:6px 12px; cursor:pointer; display:inline-flex; gap:8px; align-items:center}
+.mathbtn[aria-expanded="true"]{background:var(--accent); color:var(--accent-ink)}
+.mathbtn span{font-family:"Times New Roman",serif; font-size:1.15rem; line-height:1}
+button:focus-visible,input:focus-visible{outline:2px solid var(--ref); outline-offset:2px}
+
+main{display:grid; grid-template-columns:minmax(0,1fr) 330px; gap:12px}
+main.math-open{grid-template-columns:minmax(0,1fr) 330px 440px}
+@media (max-width: 1399px){ main.math-open{grid-template-columns:minmax(0,1fr) 330px} }
+@media (max-width: 999px){ main, main.math-open{grid-template-columns:minmax(0,1fr)} }
+
+.view{position:relative; border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--sky); min-height:360px}
+@media (max-width: 999px){ .view{height:62vh} }
+.view canvas{display:block; touch-action:none}
+.hud{position:absolute; left:10px; top:10px; display:grid; grid-template-columns:auto auto; gap:1px 10px; padding:8px 10px; border-radius:8px; background:color-mix(in srgb, var(--raise) 82%, transparent); border:1px solid var(--line); font:500 .76rem var(--f-mono); font-variant-numeric:tabular-nums}
+.hud span:nth-child(odd){color:var(--muted)}
+.motors{position:absolute; left:10px; bottom:10px; display:grid; grid-template-columns:repeat(4,auto); gap:8px; padding:8px 10px; border-radius:8px; background:color-mix(in srgb, var(--raise) 82%, transparent); border:1px solid var(--line)}
+.mot{display:grid; justify-items:center; gap:3px; font:500 .68rem var(--f-mono); color:var(--muted)}
+.mot .tube{width:14px; height:54px; border-radius:4px; background:var(--panel); border:1px solid var(--line); position:relative; overflow:hidden}
+.mot .lvl{position:absolute; left:0; right:0; bottom:0; background:var(--accent); height:0}
+.mot[data-sat="1"] .lvl{background:var(--warn)}
+.viewopts{position:absolute; right:10px; top:10px; display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-end; max-width:60%}
+.tog{font:500 .74rem var(--f-body); border:1px solid var(--line); background:color-mix(in srgb, var(--raise) 85%, transparent); color:var(--fg); border-radius:999px; padding:4px 10px; cursor:pointer}
+.tog[aria-pressed="true"]{border-color:var(--ref); color:var(--ref); box-shadow:inset 0 0 0 1px var(--ref)}
+.orient{position:absolute; right:10px; bottom:10px; font-size:.7rem; color:var(--muted); background:color-mix(in srgb, var(--raise) 80%, transparent); padding:4px 8px; border-radius:6px; text-align:right}
+
+.panel{display:flex; flex-direction:column; gap:10px; min-height:0; overflow:auto}
+.card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; display:grid; gap:10px}
+.tabs{display:grid; grid-template-columns:repeat(3,1fr); border:1px solid var(--line); border-radius:8px; overflow:hidden}
+.tabs button{font:600 .8rem var(--f-display); letter-spacing:.05em; text-transform:uppercase; border:0; background:var(--raise); color:var(--muted); padding:8px 4px; cursor:pointer}
+.tabs button+button{border-left:1px solid var(--line)}
+.tabs button[aria-selected="true"]{background:var(--fg); color:var(--bg)}
+.sec{display:grid; gap:10px}
+.sec h3{margin:0; font:600 .74rem var(--f-display); letter-spacing:.1em; text-transform:uppercase; color:var(--muted)}
+.missions{display:grid; grid-template-columns:repeat(3,1fr); gap:6px}
+.mbtn{font:500 .8rem var(--f-body); padding:8px 6px; border-radius:8px; border:1px solid var(--line); background:var(--raise); color:var(--fg); cursor:pointer}
+.mbtn[aria-pressed="true"]{border-color:var(--accent); color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent)}
+.mbtn.wide{grid-column:span 3}
+.sl{display:grid; gap:2px}
+.sl .row{display:flex; align-items:center; gap:6px; font-size:.82rem}
+.sl .row label{flex:1; min-width:0}
+.sl output{font:500 .8rem var(--f-mono); font-variant-numeric:tabular-nums; white-space:nowrap}
+.sl input[type=range]{width:100%; accent-color:var(--accent)}
+.sl input:disabled{opacity:.45}
+.fx{font:italic 600 .72rem "Times New Roman",serif; border:1px solid var(--line); background:var(--raise); color:var(--muted); border-radius:5px; padding:1px 5px; cursor:pointer; line-height:1.3}
+.fx:hover{color:var(--hi); border-color:var(--hi)}
+.note{margin:0; font-size:.75rem; color:var(--muted)}
+.kv{display:flex; flex-wrap:wrap; gap:2px 12px; font-size:.78rem; color:var(--muted)}
+.kv b{font:500 .78rem var(--f-mono); color:var(--fg)}
+.act{font:600 .82rem var(--f-body); padding:8px; border-radius:8px; border:1px solid var(--accent); background:transparent; color:var(--accent); cursor:pointer}
+.trend{width:100%; height:170px; display:block}
+.tl{display:flex; flex-wrap:wrap; gap:4px 12px; font-size:.72rem; color:var(--muted)}
+.tl i{display:inline-block; width:14px; height:2px; margin-right:4px; vertical-align:middle}
+
+/* Cuaderno de ecuaciones */
+.math{display:none; flex-direction:column; gap:10px; min-height:0; overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px}
+main.math-open .math{display:flex}
+@media (max-width: 1399px){
+  main.math-open .math{position:fixed; z-index:20; top:max(12px, env(safe-area-inset-top, 0px)); bottom:max(12px, env(safe-area-inset-bottom, 0px)); right:max(12px, env(safe-area-inset-right, 0px)); width:min(460px, calc(100vw - 24px)); box-shadow:0 12px 40px rgba(0,0,0,.28)}
+}
+.math-head{display:flex; align-items:center; gap:8px}
+.math-head h2{margin:0; font:700 1.15rem var(--f-display); flex:1}
+.x{border:1px solid var(--line); background:var(--raise); color:var(--fg); border-radius:6px; padding:3px 9px; cursor:pointer}
+.math p.lead{margin:0; font-size:.82rem; color:var(--muted)}
+.casc{display:flex; flex-wrap:wrap; align-items:center; gap:4px; font-size:.72rem}
+.casc .b{border:1px solid var(--line); background:var(--raise); border-radius:6px; padding:3px 7px; cursor:pointer; color:var(--fg); font:500 .72rem var(--f-body)}
+.casc .arr{color:var(--muted)}
+.casc .b.flash{border-color:var(--hi); color:var(--hi); background:var(--hi-bg)}
+.eq{border:1px solid var(--line); background:var(--raise); border-radius:10px; padding:10px 12px; display:grid; gap:6px; scroll-margin-top:8px; transition:border-color .3s, box-shadow .3s}
+.eq.flash{border-color:var(--hi); box-shadow:0 0 0 2px var(--hi-bg), 0 0 0 3px var(--hi)}
+.eq h4{margin:0; display:flex; align-items:baseline; gap:8px; font:600 .9rem var(--f-display); letter-spacing:.02em}
+.eq h4 small{font:500 .68rem var(--f-mono); color:var(--muted); letter-spacing:0}
+.eq .tex{overflow-x:auto; overflow-y:hidden; font-size:.95rem; padding:2px 0}
+.eq .tex mjx-container{margin:.3em 0 !important}
+.eq p{margin:0; font-size:.78rem; color:var(--muted)}
+.live{display:grid; grid-template-columns:repeat(auto-fill,minmax(175px,1fr)); gap:3px 10px; font:400 .74rem var(--f-mono); font-variant-numeric:tabular-nums; border-top:1px dashed var(--line); padding-top:6px}
+.live span b{font-weight:500; color:var(--fg)} .live span{color:var(--muted)}
+.mtx{border-collapse:collapse; font:400 .74rem var(--f-mono); font-variant-numeric:tabular-nums}
+.mtx td{padding:1px 6px; text-align:right}
+.mtx tr td:first-child{border-left:1.5px solid var(--muted)} .mtx tr td:last-child{border-right:1.5px solid var(--muted)}
+.mtxwrap{display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; border-top:1px dashed var(--line); padding-top:6px; font:400 .74rem var(--f-mono); color:var(--muted)}
+.mtxwrap > span{display:flex; align-items:center; gap:6px; flex-wrap:wrap}
+/* Términos resaltados dentro de las ecuaciones (SVG de MathJax) */
+.math .hl-wind,.math .hl-mass,.math .hl-gain,.math .hl-att,.math .hl-motor,.math .hl-yaw{transition:fill .25s,color .25s}
+main.hl-wind .math .hl-wind, main.hl-mass .math .hl-mass, main.hl-gain .math .hl-gain, main.hl-att .math .hl-att, main.hl-motor .math .hl-motor{fill:var(--hi); color:var(--hi)}
+.flashtxt{color:var(--hi) !important}
+@media (prefers-reduced-motion: reduce){ .eq{transition:none} }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="brand">
+    <h1>Cuadricóptero <em>Q-450</em></h1>
+    <p>Dinámica de cuerpo rígido en 6 grados de libertad · control PID en cascada · motores con su propia dinámica</p>
+  </div>
+  <div class="spacer"></div>
+  <span class="chip" id="state" data-s="fly"><i></i><span id="stateTxt">En vuelo</span></span>
+  <span class="clock" id="clock">t = 0.0 s</span>
+  <div class="seg" role="group" aria-label="Velocidad de simulación">
+    <button id="sp0" aria-pressed="false">Pausa</button>
+    <button id="sp025" aria-pressed="false">Cámara lenta ×¼</button>
+    <button id="sp1" aria-pressed="true">Tiempo real</button>
+  </div>
+  <button class="mathbtn" id="mathBtn" aria-expanded="false" aria-controls="math"><span>∑</span>Ver la matemática</button>
+</header>
+
+<main id="main">
+  <section class="view" id="view" aria-label="Vista 3D del cuadricóptero">
+    <div class="hud" id="hud">
+      <span>Altura</span><span id="hZ">—</span>
+      <span>Velocidad</span><span id="hV">—</span>
+      <span>Alabeo φ</span><span id="hR">—</span>
+      <span>Cabeceo θ</span><span id="hP">—</span>
+      <span>Guiñada ψ</span><span id="hY">—</span>
+      <span>Empuje T</span><span id="hT">—</span>
+    </div>
+    <div class="viewopts">
+      <button class="tog" id="tForces" aria-pressed="true">Fuerzas</button>
+      <button class="tog" id="tTrail" aria-pressed="true">Estela</button>
+      <button class="tog" id="tFollow" aria-pressed="true">Cámara sigue al dron</button>
+    </div>
+    <div class="motors" aria-label="Velocidad de motores">
+      <div class="mot" id="m1"><div class="tube"><div class="lvl"></div></div><span>M1</span></div>
+      <div class="mot" id="m2"><div class="tube"><div class="lvl"></div></div><span>M2</span></div>
+      <div class="mot" id="m3"><div class="tube"><div class="lvl"></div></div><span>M3</span></div>
+      <div class="mot" id="m4"><div class="tube"><div class="lvl"></div></div><span>M4</span></div>
+    </div>
+    <div class="orient">Hélices naranjas = frente · Arrastra para girar la cámara</div>
+  </section>
+
+  <aside class="panel">
+    <div class="card">
+      <div class="tabs" role="tablist">
+        <button role="tab" id="tab-mis" aria-selected="true" aria-controls="sec-mis">Misión</button>
+        <button role="tab" id="tab-dis" aria-selected="false" aria-controls="sec-dis">Entorno</button>
+        <button role="tab" id="tab-ctl" aria-selected="false" aria-controls="sec-ctl">Control</button>
+      </div>
+
+      <div class="sec" id="sec-mis" role="tabpanel">
+        <div class="missions">
+          <button class="mbtn" data-m="hold" aria-pressed="true">Punto fijo</button>
+          <button class="mbtn" data-m="circle" aria-pressed="false">Círculo</button>
+          <button class="mbtn" data-m="eight" aria-pressed="false">Ocho</button>
+          <button class="mbtn" data-m="square" aria-pressed="false">Cuadrado</button>
+          <button class="mbtn" data-m="helix" aria-pressed="false">Espiral</button>
+          <button class="mbtn" data-m="land" aria-pressed="false">Aterrizar</button>
+        </div>
+        <h3>Referencia de posición</h3>
+        <div class="sl" data-eq="pos"><div class="row"><label for="rX">x<sub>ref</sub> · este</label><output id="vX"></output><button class="fx" data-card="eq-pos" title="Ver ecuación">f(x)</button></div><input type="range" id="rX" min="-5" max="5" step="0.1" value="0"></div>
+        <div class="sl" data-eq="pos"><div class="row"><label for="rY">y<sub>ref</sub> · norte</label><output id="vY"></output><button class="fx" data-card="eq-pos" title="Ver ecuación">f(x)</button></div><input type="range" id="rY" min="-5" max="5" step="0.1" value="0"></div>
+        <div class="sl" data-eq="pos"><div class="row"><label for="rZ">z<sub>ref</sub> · altura</label><output id="vZ"></output><button class="fx" data-card="eq-pos" title="Ver ecuación">f(x)</button></div><input type="range" id="rZ" min="0" max="8" step="0.1" value="2.5"></div>
+        <div class="sl" data-eq="att"><div class="row"><label for="rPsi">ψ<sub>ref</sub> · rumbo</label><output id="vPsi"></output><button class="fx" data-card="eq-att" title="Ver ecuación">f(x)</button></div><input type="range" id="rPsi" min="-180" max="180" step="5" value="0"></div>
+        <p class="note">Las trayectorias generan p<sub>ref</sub>(t) y su velocidad; el controlador las persigue con la ley PID.</p>
+      </div>
+
+      <div class="sec" id="sec-dis" role="tabpanel" hidden>
+        <h3>Viento</h3>
+        <div class="sl" data-eq="trans" data-hl="wind"><div class="row"><label for="wS">Velocidad del viento</label><output id="vWS"></output><button class="fx" data-card="eq-trans" title="Ver ecuación">f(x)</button></div><input type="range" id="wS" min="0" max="14" step="0.5" value="0"></div>
+        <div class="sl" data-eq="trans" data-hl="wind"><div class="row"><label for="wD">Dirección (desde donde sopla)</label><output id="vWD"></output><button class="fx" data-card="eq-trans" title="Ver ecuación">f(x)</button></div><input type="range" id="wD" min="0" max="355" step="5" value="270"></div>
+        <div class="sl" data-eq="trans" data-hl="wind"><div class="row"><label for="wT">Turbulencia (ráfagas)</label><output id="vWT"></output><button class="fx" data-card="eq-trans" title="Ver ecuación">f(x)</button></div><input type="range" id="wT" min="0" max="1" step="0.05" value="0"></div>
+        <h3>Carga y averías</h3>
+        <div class="sl" data-eq="trans,pos" data-hl="mass"><div class="row"><label for="pL">Carga útil (el controlador no la conoce)</label><output id="vPL"></output><button class="fx" data-card="eq-trans" title="Ver ecuación">f(x)</button></div><input type="range" id="pL" min="0" max="1.2" step="0.05" value="0"></div>
+        <div class="sl" data-eq="motor,mix" data-hl="motor"><div class="row"><label for="mH">Eficiencia del motor M3</label><output id="vMH"></output><button class="fx" data-card="eq-motor" title="Ver ecuación">f(x)</button></div><input type="range" id="mH" min="0.5" max="1" step="0.01" value="1"></div>
+        <button class="act" id="kick" data-eq="rot">Dar un empujón al dron</button>
+        <p class="note">Con carga extra el dron baja al principio: el término integral K<sub>i</sub>∫e dt va acumulando el empuje que falta.</p>
+      </div>
+
+      <div class="sec" id="sec-ctl" role="tabpanel" hidden>
+        <h3>Lazo externo · posición</h3>
+        <div class="sl" data-eq="pos" data-hl="gain"><div class="row"><label for="kpxy">K<sub>p</sub> horizontal</label><output id="vkpxy"></output><button class="fx" data-card="eq-pos">f(x)</button></div><input type="range" id="kpxy" min="0" max="6" step="0.1" value="1.8"></div>
+        <div class="sl" data-eq="pos" data-hl="gain"><div class="row"><label for="kixy">K<sub>i</sub> horizontal</label><output id="vkixy"></output><button class="fx" data-card="eq-pos">f(x)</button></div><input type="range" id="kixy" min="0" max="2" step="0.05" value="0.15"></div>
+        <div class="sl" data-eq="pos" data-hl="gain"><div class="row"><label for="kdxy">K<sub>d</sub> horizontal</label><output id="vkdxy"></output><button class="fx" data-card="eq-pos">f(x)</button></div><input type="range" id="kdxy" min="0" max="6" step="0.1" value="2.4"></div>
+        <div class="sl" data-eq="pos" data-hl="gain"><div class="row"><label for="kpz">K<sub>p</sub> altura</label><output id="vkpz"></output><button class="fx" data-card="eq-pos">f(x)</button></div><input type="range" id="kpz" min="0" max="15" step="0.1" value="5"></div>
+        <div class="sl" data-eq="pos" data-hl="gain"><div class="row"><label for="kiz">K<sub>i</sub> altura</label><output id="vkiz"></output><button class="fx" data-card="eq-pos">f(x)</button></div><input type="range" id="kiz" min="0" max="5" step="0.05" value="1.5"></div>
+        <div class="sl" data-eq="pos" data-hl="gain"><div class="row"><label for="kdz">K<sub>d</sub> altura</label><output id="vkdz"></output><button class="fx" data-card="eq-pos">f(x)</button></div><input type="range" id="kdz" min="0" max="10" step="0.1" value="4"></div>
+        <h3>Lazo interno · actitud</h3>
+        <div class="sl" data-eq="att" data-hl="att"><div class="row"><label for="kpa">K<sub>p,η</sub> alabeo y cabeceo</label><output id="vkpa"></output><button class="fx" data-card="eq-att">f(x)</button></div><input type="range" id="kpa" min="20" max="600" step="5" value="180"></div>
+        <div class="sl" data-eq="att" data-hl="att"><div class="row"><label for="kda">K<sub>d,η</sub> alabeo y cabeceo</label><output id="vkda"></output><button class="fx" data-card="eq-att">f(x)</button></div><input type="range" id="kda" min="1" max="60" step="0.5" value="22"></div>
+        <div class="kv"><span>ω<sub>n</sub> <b id="wn">—</b></span><span>ζ <b id="zeta">—</b></span><span>respuesta <b id="resp">—</b></span></div>
+        <button class="act" id="resetGains">Restaurar ganancias</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec">
+        <h3>Telemetría · últimos 10 s</h3>
+        <canvas class="trend" id="trend"></canvas>
+        <div class="tl"><span><i style="background:var(--c-z)"></i>z</span><span><i style="background:var(--ref)"></i>referencia</span><span><i style="background:var(--c-x)"></i>φ alabeo</span><span><i style="background:var(--c-y)"></i>θ cabeceo</span></div>
+      </div>
+    </div>
+  </aside>
+
+  <aside class="math" id="math" aria-label="Matemática del modelo">
+    <div class="math-head"><h2>La matemática detrás del vuelo</h2><button class="x" id="mathClose" aria-label="Cerrar">✕</button></div>
+    <p class="lead">Cada bloque es una ecuación que el simulador resuelve 500 veces por segundo. Debajo están los valores de este instante. Al mover un control, se resaltan en rosa la ecuación y el término que cambia.</p>
+    <div class="casc" id="casc">
+      <button class="b" data-card="eq-pos">p<sub>ref</sub> → PID posición</button><span class="arr">→</span>
+      <button class="b" data-card="eq-att">T, φ<sub>d</sub>, θ<sub>d</sub> → PD actitud</button><span class="arr">→</span>
+      <button class="b" data-card="eq-mix">τ → Mezclador</button><span class="arr">→</span>
+      <button class="b" data-card="eq-motor">Ω<sub>i</sub> → Motores</button><span class="arr">→</span>
+      <button class="b" data-card="eq-trans">Física 6-DOF</button><span class="arr">↺</span>
+    </div>
+
+    <section class="eq" id="eq-pos" data-k="pos">
+      <h4>1 · Control de posición (lazo externo) <small>PID</small></h4>
+      <div class="tex">\[ \mathbf e = \mathbf p_{\text{ref}} - \mathbf p \]
+      \[ \mathbf a_{\text{des}} = \class{hl-gain}{K_p}\,\mathbf e + \class{hl-gain}{K_i}\!\int \mathbf e\,dt \;-\; \class{hl-gain}{K_d}\,(\dot{\mathbf p} - \dot{\mathbf p}_{\text{ref}}) \]
+      \[ T_{\text{cmd}} = \frac{\class{hl-mass}{\hat m}\,(g + a_z)}{\cos\phi\,\cos\theta} \]
+      \[ \theta_d = \arctan\frac{a_f}{g+a_z} \qquad \phi_d = -\arctan\frac{a_l}{g+a_z} \]</div>
+      <p>El lazo externo decide hacia dónde inclinarse. a<sub>f</sub> y a<sub>l</sub> son la aceleración deseada hacia el frente y hacia la izquierda del dron (rotadas por ψ). El controlador cree que la masa es m̂ = 1,5 kg.</p>
+      <div class="live" id="lv-pos"></div>
+    </section>
+
+    <section class="eq" id="eq-att" data-k="att">
+      <h4>2 · Control de actitud (lazo interno) <small>PD</small></h4>
+      <div class="tex">\[ \boldsymbol\tau_{\text{cmd}} = I\left[\class{hl-att}{K_{p,\eta}}\,(\boldsymbol\eta_d - \boldsymbol\eta) - \class{hl-att}{K_{d,\eta}}\,\boldsymbol\omega\right] \]
+      \[ \ddot e + \class{hl-att}{K_{d,\eta}}\,\dot e + \class{hl-att}{K_{p,\eta}}\,e = 0 \]
+      \[ \Rightarrow\quad \omega_n = \sqrt{K_{p,\eta}}, \qquad \zeta = \frac{K_{d,\eta}}{2\sqrt{K_{p,\eta}}} \]</div>
+      <p>η = (φ, θ, ψ) son los ángulos de alabeo, cabeceo y guiñada. El lazo interno tiene que ser unas 5–10 veces más rápido que el externo. Si ζ &lt; 0,5 el dron oscila; si ω<sub>n</sub> es bajo, las inclinaciones llegan tarde y la posición se vuelve inestable.</p>
+      <div class="live" id="lv-att"></div>
+    </section>
+
+    <section class="eq" id="eq-mix" data-k="mix">
+      <h4>3 · Mezclador de motores <small>configuración X</small></h4>
+      <div class="tex">\[ \begin{bmatrix} T \\ \tau_\phi \\ \tau_\theta \\ \tau_\psi \end{bmatrix} = \begin{bmatrix} 1 & 1 & 1 & 1 \\ -d & d & d & -d \\ -d & d & -d & d \\ -c & -c & c & c \end{bmatrix} \begin{bmatrix} T_1 \\ T_2 \\ T_3 \\ T_4 \end{bmatrix}, \qquad d = \frac{\ell}{\sqrt2}, \;\; c = \frac{k_Q}{k_T} \]</div>
+      <p>Se invierte la matriz para pasar de (T, τ) a cuánto empuje pide cada motor. M1 y M2 giran en sentido antihorario, M3 y M4 en sentido horario. La diferencia de par entre ambos pares hace girar al dron sobre su eje (guiñada).</p>
+      <div class="mtxwrap" id="lv-mix"></div>
+    </section>
+
+    <section class="eq" id="eq-motor" data-k="motor">
+      <h4>4 · Motores y hélices <small>primer orden</small></h4>
+      <div class="tex">\[ T_i = \class{hl-motor}{h_i}\,k_T\,\Omega_i^2 \qquad Q_i = k_Q\,\Omega_i^2 \qquad \tau_m\,\dot\Omega_i = \Omega_i^{\text{cmd}} - \Omega_i \]</div>
+      <p>El empuje crece con el cuadrado de la velocidad de giro. Los motores no responden al instante (τ<sub>m</sub> = 35 ms) y tienen un tope de 1100 rad/s. h<sub>i</sub> es la eficiencia de cada motor: el controlador no la conoce y la compensa con la realimentación.</p>
+      <div class="live" id="lv-motor"></div>
+    </section>
+
+    <section class="eq" id="eq-trans" data-k="trans">
+      <h4>5 · Dinámica traslacional <small>Newton</small></h4>
+      <div class="tex">\[ \class{hl-mass}{m}\,\ddot{\mathbf p} = R(\phi,\theta,\psi)\begin{bmatrix}0\\0\\T\end{bmatrix} - \class{hl-mass}{m}\,g\,\mathbf e_z \class{hl-wind}{\;-\;k_d\,(\dot{\mathbf p} - \mathbf w)} \]</div>
+      <p>El empuje siempre apunta hacia arriba del dron. Para moverse de costado tiene que inclinarse, y la matriz de rotación R reparte el empuje entre las direcciones horizontales y la vertical. <b>w</b> es la velocidad del viento.</p>
+      <div class="live" id="lv-trans"></div>
+    </section>
+
+    <section class="eq" id="eq-R" data-k="R">
+      <h4>6 · Matriz de rotación <small>Z-Y-X</small></h4>
+      <div class="tex">\[ R = R_z(\psi)\,R_y(\theta)\,R_x(\phi) = \begin{bmatrix} c_\psi c_\theta & c_\psi s_\theta s_\phi - s_\psi c_\phi & c_\psi s_\theta c_\phi + s_\psi s_\phi \\ s_\psi c_\theta & s_\psi s_\theta s_\phi + c_\psi c_\phi & s_\psi s_\theta c_\phi - c_\psi s_\phi \\ -s_\theta & c_\theta s_\phi & c_\theta c_\phi \end{bmatrix} \]</div>
+      <p>c = cos, s = sen. La tercera columna es la dirección del empuje en el mundo.</p>
+      <div class="mtxwrap" id="lv-R"></div>
+    </section>
+
+    <section class="eq" id="eq-rot" data-k="rot">
+      <h4>7 · Dinámica rotacional <small>Euler</small></h4>
+      <div class="tex">\[ I\,\dot{\boldsymbol\omega} = \boldsymbol\tau - \boldsymbol\omega \times I\boldsymbol\omega - k_r\,\boldsymbol\omega, \qquad I = \operatorname{diag}(I_x, I_y, I_z) \]
+      \[ \begin{bmatrix}\dot\phi\\ \dot\theta\\ \dot\psi\end{bmatrix} = \begin{bmatrix} 1 & s_\phi t_\theta & c_\phi t_\theta \\ 0 & c_\phi & -s_\phi \\ 0 & s_\phi / c_\theta & c_\phi / c_\theta \end{bmatrix} \begin{bmatrix} p\\ q\\ r\end{bmatrix} \]</div>
+      <p>ω = (p, q, r) son las velocidades angulares medidas en el cuerpo, como las que da un giróscopo. El término ω × Iω es el acoplamiento giroscópico.</p>
+      <div class="live" id="lv-rot"></div>
+    </section>
+    <p class="note">Parámetros: m̂ = 1,5 kg, ℓ = 0,225 m, I = diag(0,0123; 0,0123; 0,0224) kg·m², k<sub>T</sub> = 1,0·10⁻⁵ N·s², k<sub>Q</sub> = 1,6·10⁻⁷ N·m·s², k<sub>d</sub> = 0,3 N·s/m, g = 9,81 m/s². Integración con paso fijo de 2 ms.</p>
+  </aside>
+</main>
+
+<script>
+window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']]},svg:{fontCache:'global'},startup:{typeset:true}};
+</script>
+<!-- MathJax 3.2.2 y three.js r128: copias locales (funciona sin internet) con respaldo en CDN -->
+<script src="vendor/mathjax/tex-svg.js" async onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js';s.async=true;document.head.appendChild(s);"></script>
+<script src="vendor/three.min.js"></script>
+<script>window.THREE||document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>')</script>
+<script src="vendor/OrbitControls.js"></script>
+<script>(window.THREE&&THREE.OrbitControls)||document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"><\/script>')</script>
+<script>
+(function(){
+"use strict";
+/* ═════════════ Parámetros físicos ═════════════ */
+const g=9.81, M0=1.5, L=0.225, D=L/Math.SQRT2, KT=1.0e-5, KQ=1.6e-7, C=KQ/KT;
+const IX=0.0123, IY=0.0123, IZ=0.0224, TAU_M=0.035, OMAX=1100, OMIN=0, KD_AIR=0.3, KR=0.002;
+const TMAX=KT*OMAX*OMAX, DT=0.002, TILT_MAX=35*Math.PI/180;
+const DEF_GAINS={kpxy:1.8,kixy:0.15,kdxy:2.4,kpz:5,kiz:1.5,kdz:4,kpa:180,kda:22};
+const G=Object.assign({},DEF_GAINS);
+const ENV={wind:0,wdir:270,turb:0,payload:0,health:[1,1,1,1]};
+
+/* ═════════════ Estado ═════════════ */
+const hover=Math.sqrt(M0*g/4/KT);
+let X; // estado completo
+function resetState(z){
+  X={p:[0,0,z],v:[0,0,0],eta:[0,0,0],w:[0,0,0],Om:[hover,hover,hover,hover],I:[0,0,0],t:0,gust:[0,0,0],
+     ctl:{e:[0,0,0],a:[0,0,0],Tc:M0*g,phid:0,thd:0,psid:0,tau:[0,0,0],Tcmd:[0,0,0,0],sat:false},
+     F:{T:M0*g,Ti:[0,0,0,0],acc:[0,0,0],aero:[0,0,0],R:ident(),wd:[0,0,0],etad:[0,0,0]}};
+}
+const ident=()=>[[1,0,0],[0,1,0],[0,0,1]];
+resetState(2.5);
+
+/* ═════════════ Referencias y misiones ═════════════ */
+const REF={x:0,y:0,z:2.5,psi:0};
+let mission='hold', mt=0;
+const rp=[0,0,2.5], rv=[0,0,0]; let rpsi=0; // referencia filtrada
+function missionTarget(t){
+  // devuelve {p, v, psi}
+  switch(mission){
+    case 'circle':{const R=3,w=0.35; return {p:[R*Math.cos(w*t),R*Math.sin(w*t),3],v:[-R*w*Math.sin(w*t),R*w*Math.cos(w*t),0],psi:w*t+Math.PI/2};}
+    case 'eight':{const w=0.3; return {p:[3.5*Math.sin(w*t),1.75*Math.sin(2*w*t),3+0.5*Math.sin(w*t)],v:[3.5*w*Math.cos(w*t),3.5*w*Math.cos(2*w*t),0.5*w*Math.cos(w*t)],psi:0};}
+    case 'helix':{const R=2.5,w=0.45,per=2*Math.PI/w*3; const s=(t%(2*per)); const up=s<per; const zz=up?1+4*s/per:5-4*(s-per)/per; return {p:[R*Math.cos(w*t),R*Math.sin(w*t),zz],v:[-R*w*Math.sin(w*t),R*w*Math.cos(w*t),(up?4:-4)/per],psi:w*t+Math.PI};}
+    case 'square':{const P=[[3,3],[-3,3],[-3,-3],[3,-3]],spd=1.6,side=6,per=4*side/spd; const s=(t%per)*spd; const k=Math.floor(s/side)%4, f=(s%side)/side; const a=P[k],b=P[(k+1)%4];
+      const dir=[(b[0]-a[0])/side,(b[1]-a[1])/side]; return {p:[a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f,3],v:[dir[0]*spd,dir[1]*spd,0],psi:Math.atan2(dir[1],dir[0])};}
+    case 'land': return {p:[REF.x,REF.y,0],v:[0,0,0],psi:REF.psi*Math.PI/180};
+    default: return {p:[REF.x,REF.y,REF.z],v:[0,0,0],psi:REF.psi*Math.PI/180};
+  }
+}
+function updateRef(dt){
+  const tg=missionTarget(mt); const vmax=mission==='land'?0.8:3;
+  const d=[tg.p[0]-rp[0],tg.p[1]-rp[1],tg.p[2]-rp[2]]; const n=Math.hypot(...d);
+  if(n<=vmax*dt || n<0.4){ for(let i=0;i<3;i++){rp[i]=tg.p[i]; rv[i]=n<0.4?tg.v[i]:0;} }
+  else { for(let i=0;i<3;i++){const s=d[i]/n*vmax; rp[i]+=s*dt; rv[i]=s;} }
+  if(mission==='land' && n<0.4){ rp[2]=Math.max(0,rp[2]-0.6*dt); rv[2]=rp[2]>0?-0.6:0; }
+  let dpsi=wrap(tg.psi-rpsi); const r=1.5*dt; rpsi=wrap(rpsi+clamp(dpsi,-r,r));
+}
+const wrap=a=>Math.atan2(Math.sin(a),Math.cos(a));
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+
+/* ═════════════ Física ═════════════ */
+function rotMat(phi,th,psi){
+  const cf=Math.cos(phi),sf=Math.sin(phi),ct=Math.cos(th),st=Math.sin(th),cp=Math.cos(psi),sp=Math.sin(psi);
+  return [[cp*ct, cp*st*sf-sp*cf, cp*st*cf+sp*sf],[sp*ct, sp*st*sf+cp*cf, sp*st*cf-cp*sf],[-st, ct*sf, ct*cf]];
+}
+let gustState=[0,0,0];
+function step(dt){
+  X.t+=dt; mt+=dt; updateRef(dt);
+  const m=M0+ENV.payload; const [phi,th,psi]=X.eta;
+  const onGround=X.p[2]<=0.0005;
+  const landedIdle=mission==='land'&&rp[2]<=0.001&&X.p[2]<0.06;
+
+  /* --- Control de posición (PID) --- */
+  const c=X.ctl; const e=[rp[0]-X.p[0],rp[1]-X.p[1],rp[2]-X.p[2]];
+  if(!onGround&&!landedIdle){ X.I[0]=clamp(X.I[0]+e[0]*dt,-12,12); X.I[1]=clamp(X.I[1]+e[1]*dt,-12,12); X.I[2]=clamp(X.I[2]+e[2]*dt,-4,4); }
+  const ax=G.kpxy*e[0]+G.kixy*X.I[0]-G.kdxy*(X.v[0]-rv[0]);
+  const ay=G.kpxy*e[1]+G.kixy*X.I[1]-G.kdxy*(X.v[1]-rv[1]);
+  let az=G.kpz*e[2]+G.kiz*X.I[2]-G.kdz*(X.v[2]-rv[2]); az=clamp(az,-0.8*g,2*g);
+  const amax=(g+az)*Math.tan(TILT_MAX);
+  let axh=ax, ayh=ay; const an=Math.hypot(ax,ay); if(an>amax&&an>0){axh=ax/an*amax; ayh=ay/an*amax;}
+  const af=axh*Math.cos(psi)+ayh*Math.sin(psi), al=-axh*Math.sin(psi)+ayh*Math.cos(psi);
+  const thd=clamp(Math.atan2(af,g+az),-TILT_MAX,TILT_MAX), phid=clamp(-Math.atan2(al,g+az),-TILT_MAX,TILT_MAX), psid=rpsi;
+  let Tc=M0*(g+az)/Math.max(0.5,Math.cos(phi)*Math.cos(th));
+  if(landedIdle) Tc=0;
+
+  /* --- Control de actitud (PD) --- */
+  const kpy=6, kdy=3;
+  const tau=[IX*(G.kpa*(phid-phi)-G.kda*X.w[0]), IY*(G.kpa*(thd-th)-G.kda*X.w[1]), IZ*(kpy*wrap(psid-psi)-kdy*X.w[2])];
+  if(landedIdle){tau[0]=tau[1]=tau[2]=0;}
+
+  /* --- Mezclador inverso --- */
+  const Tcmd=[
+    Tc/4 - tau[0]/(4*D) - tau[1]/(4*D) - tau[2]/(4*C),
+    Tc/4 + tau[0]/(4*D) + tau[1]/(4*D) - tau[2]/(4*C),
+    Tc/4 + tau[0]/(4*D) - tau[1]/(4*D) + tau[2]/(4*C),
+    Tc/4 - tau[0]/(4*D) + tau[1]/(4*D) + tau[2]/(4*C)];
+  let sat=false;
+  for(let i=0;i<4;i++){ if(Tcmd[i]>TMAX||(Tcmd[i]<0&&!landedIdle)) sat=true; Tcmd[i]=clamp(Tcmd[i],0,TMAX); }
+
+  /* --- Motores --- */
+  const Ti=[0,0,0,0], Qi=[0,0,0,0];
+  for(let i=0;i<4;i++){ const oc=Math.sqrt(Tcmd[i]/KT); X.Om[i]+=(oc-X.Om[i])/TAU_M*dt; X.Om[i]=clamp(X.Om[i],OMIN,OMAX);
+    Ti[i]=ENV.health[i]*KT*X.Om[i]*X.Om[i]; Qi[i]=KQ*X.Om[i]*X.Om[i]; }
+  const T=Ti[0]+Ti[1]+Ti[2]+Ti[3];
+  const tb=[D*(-Ti[0]+Ti[1]+Ti[2]-Ti[3]), D*(-Ti[0]+Ti[1]-Ti[2]+Ti[3]), -Qi[0]-Qi[1]+Qi[2]+Qi[3]];
+
+  /* --- Viento con ráfagas (Ornstein–Uhlenbeck) --- */
+  const wdirTo=(90-ENV.wdir+180)*Math.PI/180; // rumbo de brújula (desde donde sopla) → ángulo matemático hacia donde va
+  const sig=ENV.turb*(1.5+0.35*ENV.wind);
+  for(let i=0;i<3;i++){ gustState[i]+=(-gustState[i]/1.2)*dt+sig*Math.sqrt(2*dt/1.2)*randn()*(i===2?0.4:1); }
+  const wv=[ENV.wind*Math.cos(wdirTo)+gustState[0], ENV.wind*Math.sin(wdirTo)+gustState[1], gustState[2]];
+
+  /* --- Traslación: m p'' = R[0,0,T] − m g e_z − k_d (p' − w) --- */
+  const R=rotMat(phi,th,psi);
+  const aero=[-KD_AIR*(X.v[0]-wv[0]),-KD_AIR*(X.v[1]-wv[1]),-KD_AIR*(X.v[2]-wv[2])];
+  const acc=[(R[0][2]*T+aero[0])/m,(R[1][2]*T+aero[1])/m,(R[2][2]*T+aero[2])/m-g];
+  for(let i=0;i<3;i++){ X.v[i]+=acc[i]*dt; X.p[i]+=X.v[i]*dt; }
+
+  /* --- Rotación: I ω' = τ − ω×Iω − k_r ω --- */
+  const [p,q,r]=X.w; const Iw=[IX*p,IY*q,IZ*r];
+  const cr=[q*Iw[2]-r*Iw[1], r*Iw[0]-p*Iw[2], p*Iw[1]-q*Iw[0]];
+  const wd=[(tb[0]-cr[0]-KR*p)/IX,(tb[1]-cr[1]-KR*q)/IY,(tb[2]-cr[2]-KR*r)/IZ];
+  for(let i=0;i<3;i++) X.w[i]+=wd[i]*dt;
+  const cf=Math.cos(phi),sf=Math.sin(phi),ct=Math.cos(th),tt=Math.tan(th);
+  const etad=[X.w[0]+sf*tt*X.w[1]+cf*tt*X.w[2], cf*X.w[1]-sf*X.w[2], (sf*X.w[1]+cf*X.w[2])/ct];
+  for(let i=0;i<3;i++) X.eta[i]+=etad[i]*dt;
+  X.eta[2]=wrap(X.eta[2]);
+
+  /* --- Suelo --- */
+  if(X.p[2]<=0){ X.p[2]=0; if(X.v[2]<0) X.v[2]=0; const f=Math.exp(-10*dt); X.v[0]*=f; X.v[1]*=f;
+    if(T<m*g*1.02){ X.eta[0]*=Math.exp(-12*dt); X.eta[1]*=Math.exp(-12*dt); X.w[0]*=0.9; X.w[1]*=0.9; X.w[2]*=0.95; } }
+
+  Object.assign(c,{e,a:[axh,ayh,az],Tc,phid,thd,psid,tau,Tcmd,sat,af,al});
+  Object.assign(X.F,{T,Ti,tb,acc,aero,R,wd,etad,wv,m,landed:landedIdle||(onGround&&T<m*g)});
+}
+function randn(){let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+
+/* ═════════════ Escena 3D ═════════════ */
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const view=$('view');
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+renderer.outputEncoding=THREE.sRGBEncoding;
+renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+view.prepend(renderer.domElement);
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(42,1,0.05,200);
+camera.position.set(-1.25,3.25,1.55);
+const controls=new THREE.OrbitControls(camera,renderer.domElement);
+controls.enableDamping=true; controls.minDistance=0.8; controls.maxDistance=30; controls.maxPolarAngle=Math.PI*0.495;
+controls.target.set(0,2.6,0); controls.update();
+
+const hemi=new THREE.HemisphereLight(0xffffff,0x606a70,0.8); scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xffffff,0.95); sun.position.set(6,12,4); sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048); const sc=sun.shadow.camera; sc.left=-6; sc.right=6; sc.top=6; sc.bottom=-6; sc.near=1; sc.far=40; sun.shadow.bias=-0.0005;
+scene.add(sun); scene.add(sun.target);
+
+// conversión de coordenadas: física ENU (x este, y norte, z arriba) → three (X, Y arriba, Z = −y)
+const V=(x,y,z)=>new THREE.Vector3(x,z,-y);
+
+// Suelo, plataforma de despegue y marcas de escala
+const groundMat=new THREE.MeshStandardMaterial({color:0xcdd4d9,roughness:0.95});
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(80,80),groundMat); ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; scene.add(ground);
+let grid=null;
+function buildGrid(){ if(grid){scene.remove(grid);} grid=new THREE.GridHelper(40,40,new THREE.Color(css('--grid1')),new THREE.Color(css('--grid2'))); grid.position.y=0.002; scene.add(grid); }
+const padTex=(()=>{const c=document.createElement('canvas'); c.width=c.height=256; const x=c.getContext('2d'); x.fillStyle='#2b3138'; x.beginPath(); x.arc(128,128,124,0,Math.PI*2); x.fill(); x.strokeStyle='#f2f4f5'; x.lineWidth=8; x.beginPath(); x.arc(128,128,100,0,Math.PI*2); x.stroke(); x.fillStyle='#f2f4f5'; x.font='bold 120px sans-serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText('H',128,136); return new THREE.CanvasTexture(c);})();
+padTex.encoding=THREE.sRGBEncoding;
+const pad=new THREE.Mesh(new THREE.CircleGeometry(0.6,48),new THREE.MeshStandardMaterial({map:padTex,roughness:0.8})); pad.rotation.x=-Math.PI/2; pad.position.y=0.004; pad.receiveShadow=true; scene.add(pad);
+// Postes de escala (1 m) en las esquinas del recorrido cuadrado
+[[3,3],[-3,3],[-3,-3],[3,-3]].forEach(([x,y])=>{const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,3,8),new THREE.MeshStandardMaterial({color:0x8d99a3})); pole.position.copy(V(x,y,1.5)); pole.castShadow=true; scene.add(pole);
+  for(let k=0;k<3;k++){const band=new THREE.Mesh(new THREE.CylinderGeometry(0.026,0.026,0.5,8),new THREE.MeshStandardMaterial({color:0xd9480f})); band.position.copy(V(x,y,k+0.25)); scene.add(band);} });
+// Ejes del mundo
+const axesG=new THREE.Group(); scene.add(axesG);
+[[V(1,0,0),0xd9480f],[V(0,1,0),0x0a7ea4]].forEach(([d,c])=>{axesG.add(new THREE.ArrowHelper(d.clone().normalize(),new THREE.Vector3(0,0.01,0),1,c,0.12,0.06));});
+
+/* ---- Dron ---- */
+const drone=new THREE.Group(); scene.add(drone);
+const body=new THREE.Group(); drone.add(body); // body local: +X frente, +Y arriba, −Z izquierda
+const carbon=new THREE.MeshStandardMaterial({color:0x22272c,roughness:0.55,metalness:0.25});
+const carbon2=new THREE.MeshStandardMaterial({color:0x30363c,roughness:0.5,metalness:0.3});
+const orange=new THREE.MeshStandardMaterial({color:0xe8590c,roughness:0.35,metalness:0.1});
+const alu=new THREE.MeshStandardMaterial({color:0xb8c0c6,roughness:0.3,metalness:0.85});
+const COMY=0.11; // altura del centro de masa sobre los patines
+function add(mesh,parent){mesh.castShadow=true; (parent||body).add(mesh); return mesh;}
+const plateB=add(new THREE.Mesh(new THREE.BoxGeometry(0.17,0.006,0.13),carbon)); plateB.position.y=0;
+const plateT=add(new THREE.Mesh(new THREE.BoxGeometry(0.15,0.006,0.12),carbon)); plateT.position.y=0.04;
+for(const [x,z] of [[0.065,0.05],[-0.065,0.05],[0.065,-0.05],[-0.065,-0.05]]){const s=add(new THREE.Mesh(new THREE.CylinderGeometry(0.004,0.004,0.04,6),alu)); s.position.set(x,0.02,z);}
+const canopy=add(new THREE.Mesh(new THREE.SphereGeometry(1,32,18,0,Math.PI*2,0,Math.PI/2),orange)); canopy.scale.set(0.095,0.05,0.07); canopy.position.y=0.043;
+const stripe=add(new THREE.Mesh(new THREE.BoxGeometry(0.1,0.002,0.012),new THREE.MeshStandardMaterial({color:0x111418}))); stripe.position.set(0.0,0.094,0); stripe.scale.set(1,1,1);
+const fc=add(new THREE.Mesh(new THREE.BoxGeometry(0.05,0.008,0.05),new THREE.MeshStandardMaterial({color:0x1f6f3f,roughness:0.6}))); fc.position.y=0.015;
+const batt=add(new THREE.Mesh(new THREE.BoxGeometry(0.14,0.04,0.048),new THREE.MeshStandardMaterial({color:0x2f3a46,roughness:0.6}))); batt.position.y=-0.026;
+const battLbl=add(new THREE.Mesh(new THREE.BoxGeometry(0.1,0.041,0.049),new THREE.MeshStandardMaterial({color:0xf2c14e,roughness:0.5}))); battLbl.position.y=-0.026; battLbl.scale.set(0.35,1,1); battLbl.position.x=0.03;
+const strap=add(new THREE.Mesh(new THREE.BoxGeometry(0.015,0.05,0.056),new THREE.MeshStandardMaterial({color:0x111111}))); strap.position.set(-0.03,-0.024,0);
+const gpsMast=add(new THREE.Mesh(new THREE.CylinderGeometry(0.003,0.003,0.07,6),alu)); gpsMast.position.set(-0.05,0.1,0);
+const gps=add(new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,0.01,24),new THREE.MeshStandardMaterial({color:0x111418,roughness:0.4}))); gps.position.set(-0.05,0.138,0);
+const gpsArrow=add(new THREE.Mesh(new THREE.ConeGeometry(0.008,0.02,3),orange)); gpsArrow.rotation.z=-Math.PI/2; gpsArrow.position.set(-0.04,0.145,0);
+// Cámara con gimbal
+const gim=new THREE.Group(); gim.position.set(0.1,-0.03,0); body.add(gim);
+add(new THREE.Mesh(new THREE.BoxGeometry(0.02,0.03,0.04),carbon2),gim);
+const camBall=add(new THREE.Mesh(new THREE.SphereGeometry(0.02,20,14),new THREE.MeshStandardMaterial({color:0x15181b,roughness:0.3})),gim); camBall.position.set(0.02,-0.02,0);
+const lens=add(new THREE.Mesh(new THREE.CylinderGeometry(0.009,0.009,0.01,16),new THREE.MeshStandardMaterial({color:0x2a6fdb,roughness:0.05,metalness:0.6})),gim); lens.rotation.z=Math.PI/2; lens.position.set(0.04,-0.02,0);
+// Tren de aterrizaje
+for(const s of [1,-1]){
+  const legA=add(new THREE.Mesh(new THREE.CylinderGeometry(0.004,0.004,0.11,8),carbon2)); legA.position.set(0.04,-0.06,s*0.06); legA.rotation.x=s*0.35;
+  const legB=add(new THREE.Mesh(new THREE.CylinderGeometry(0.004,0.004,0.11,8),carbon2)); legB.position.set(-0.04,-0.06,s*0.06); legB.rotation.x=s*0.35;
+  const skid=add(new THREE.Mesh(new THREE.CylinderGeometry(0.006,0.006,0.2,10),carbon2)); skid.rotation.z=Math.PI/2; skid.position.set(0,-COMY,s*0.08);
+  for(const e of [0.1,-0.1]){const cap=add(new THREE.Mesh(new THREE.SphereGeometry(0.007,10,8),orange)); cap.position.set(e,-COMY,s*0.08);}
+}
+// Brazos, motores, hélices
+// Motores en coordenadas del cuerpo FLU: M1 frente-der, M2 atrás-izq, M3 frente-izq, M4 atrás-der
+const MOT=[[D,-D],[-D,D],[D,D],[-D,-D]], SPIN=[1,1,-1,-1]; // +1 antihorario visto desde arriba
+const props=[], discs=[], leds=[], motorPos=[];
+const discMat=()=>new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide});
+MOT.forEach(([bx,by],i)=>{
+  const pos=new THREE.Vector3(bx,0.005,-by); motorPos.push(pos);
+  const len=Math.hypot(bx,by); const ang=Math.atan2(-by,bx);
+  const arm=add(new THREE.Mesh(new THREE.BoxGeometry(len,0.012,0.02),carbon)); arm.position.set(bx/2,0.005,-by/2); arm.rotation.y=-ang;
+  const armTop=add(new THREE.Mesh(new THREE.BoxGeometry(len*0.7,0.002,0.008),i===0||i===2?orange:alu)); armTop.position.set(bx*0.55,0.012,-by*0.55); armTop.rotation.y=-ang;
+  const mount=add(new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,0.006,20),carbon2)); mount.position.set(bx,0.012,-by);
+  const stator=add(new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.018,0.016,20),new THREE.MeshStandardMaterial({color:0x8a1c1c,roughness:0.4,metalness:0.5}))); stator.position.set(bx,0.023,-by);
+  const bell=add(new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,0.014,24),alu)); bell.position.set(bx,0.037,-by);
+  const prop=new THREE.Group(); prop.position.set(bx,0.05,-by); body.add(prop);
+  const tipMat=(i===0||i===2)?orange:new THREE.MeshStandardMaterial({color:0xe6e9eb,roughness:0.4});
+  const bladeMat=new THREE.MeshStandardMaterial({color:0x1b1f23,roughness:0.45});
+  add(new THREE.Mesh(new THREE.CylinderGeometry(0.008,0.006,0.012,12),alu),prop);
+  for(const s of [1,-1]){const bl=new THREE.Group(); bl.rotation.y=s>0?0:Math.PI; prop.add(bl);
+    const blade=add(new THREE.Mesh(new THREE.BoxGeometry(0.105,0.003,0.02),bladeMat),bl); blade.position.x=0.06; blade.rotation.x=0.22*SPIN[i];
+    const tip=add(new THREE.Mesh(new THREE.BoxGeometry(0.02,0.0032,0.017),tipMat),bl); tip.position.x=0.115; tip.rotation.x=0.18*SPIN[i];}
+  props.push(prop);
+  const disc=new THREE.Mesh(new THREE.CircleGeometry(0.127,40),discMat()); disc.rotation.x=-Math.PI/2; disc.position.set(bx,0.05,-by); body.add(disc); discs.push(disc);
+  const ledCol=i===0?0x22dd55:i===2?0xff3333:0xffffff; // der verde, izq rojo, atrás blanco
+  const led=new THREE.Mesh(new THREE.SphereGeometry(0.007,10,8),new THREE.MeshStandardMaterial({color:ledCol,emissive:ledCol,emissiveIntensity:1})); led.position.set(bx*1.08,-0.004,-by*1.08); body.add(led); leds.push(led);
+});
+body.position.y=COMY;
+
+/* ---- Flechas de fuerza ---- */
+const forceG=new THREE.Group(); scene.add(forceG);
+const mkArrow=c=>{const a=new THREE.ArrowHelper(new THREE.Vector3(0,1,0),new THREE.Vector3(),0.1,c,0.05,0.03); forceG.add(a); return a;};
+const arrMot=[0,1,2,3].map(()=>mkArrow(0xff8c42));
+const arrT=mkArrow(0xe8590c), arrG=mkArrow(0x6741d9), arrW=mkArrow(0x0a7ea4);
+const FSC=0.035; // m por N
+
+/* ---- Referencia, estela, sombra, viento ---- */
+const refG=new THREE.Group(); scene.add(refG);
+const refMat=new THREE.MeshBasicMaterial({color:0x0a7ea4,transparent:true,opacity:0.85});
+const ring=new THREE.Mesh(new THREE.TorusGeometry(0.22,0.008,8,48),refMat); ring.rotation.x=Math.PI/2; refG.add(ring);
+const refHead=new THREE.Mesh(new THREE.ConeGeometry(0.03,0.08,12),refMat); refHead.rotation.z=-Math.PI/2; refHead.position.x=0.28; refG.add(refHead);
+const refLineGeo=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3(0,-1,0)]);
+const refLine=new THREE.Line(refLineGeo,new THREE.LineDashedMaterial({color:0x0a7ea4,dashSize:0.08,gapSize:0.06,transparent:true,opacity:0.6})); scene.add(refLine);
+const pathPts=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0x0a7ea4,transparent:true,opacity:0.3})); scene.add(pathPts);
+const NTR=600; const trPos=new Float32Array(NTR*3); let trN=0;
+const trailGeo=new THREE.BufferGeometry(); trailGeo.setAttribute('position',new THREE.BufferAttribute(trPos,3)); trailGeo.setDrawRange(0,0);
+const trail=new THREE.Line(trailGeo,new THREE.LineBasicMaterial({color:0xe8590c,transparent:true,opacity:0.75})); scene.add(trail);
+let trAcc=0;
+const NWP=260; const wpPos=new Float32Array(NWP*3); const wpGeo=new THREE.BufferGeometry(); wpGeo.setAttribute('position',new THREE.BufferAttribute(wpPos,3));
+const windPts=new THREE.Points(wpGeo,new THREE.PointsMaterial({color:0x0a7ea4,size:0.035,transparent:true,opacity:0.55,depthWrite:false})); scene.add(windPts);
+for(let i=0;i<NWP;i++){wpPos[i*3]=(Math.random()-.5)*14; wpPos[i*3+1]=Math.random()*7; wpPos[i*3+2]=(Math.random()-.5)*14;}
+
+function drawPath(){
+  if(mission==='hold'||mission==='land'){pathPts.visible=false; return;}
+  const pts=[]; const per=mission==='square'?15:mission==='helix'?2*2*Math.PI/0.45*3:2*Math.PI/(mission==='circle'?0.35:0.3);
+  for(let k=0;k<=240;k++){const tg=missionTarget(k/240*per); pts.push(V(...tg.p));}
+  pathPts.geometry.dispose(); pathPts.geometry=new THREE.BufferGeometry().setFromPoints(pts); pathPts.visible=true;
+}
+
+/* ═════════════ Tema y tamaño ═════════════ */
+function applyTheme(){
+  const sky=new THREE.Color(css('--sky')); scene.background=sky; scene.fog=new THREE.Fog(sky,18,60);
+  groundMat.color.set(css('--ground')); buildGrid();
+  const ref=new THREE.Color(css('--ref')); refMat.color.copy(ref); refLine.material.color.copy(ref); pathPts.material.color.copy(ref); windPts.material.color.copy(ref);
+  drawTrend();
+}
+const mq=window.matchMedia('(prefers-color-scheme: dark)'); mq.addEventListener&&mq.addEventListener('change',applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+let VW=1,VH=1;
+function resize(){const r=view.getBoundingClientRect(); VW=Math.max(1,r.width); VH=Math.max(1,r.height); renderer.setSize(VW,VH); camera.aspect=VW/VH; camera.updateProjectionMatrix(); sizeTrend();}
+new ResizeObserver(resize).observe(view);
+
+/* ═════════════ Interfaz ═════════════ */
+let speed=1, follow=true, showForces=true, showTrail=true;
+const spB={0:$('sp0'),0.25:$('sp025'),1:$('sp1')};
+Object.entries(spB).forEach(([k,b])=>b.addEventListener('click',()=>{speed=+k; Object.values(spB).forEach(x=>x.setAttribute('aria-pressed',String(x===b)));}));
+function tog(id,fn){const b=$(id); b.addEventListener('click',()=>{const on=b.getAttribute('aria-pressed')!=='true'; b.setAttribute('aria-pressed',String(on)); fn(on);});}
+tog('tForces',on=>{showForces=on; forceG.visible=on;});
+tog('tTrail',on=>{showTrail=on; trail.visible=on;});
+tog('tFollow',on=>{follow=on;});
+
+// Pestañas
+const tabs=['mis','dis','ctl'];
+tabs.forEach(t=>$('tab-'+t).addEventListener('click',()=>{tabs.forEach(u=>{$('tab-'+u).setAttribute('aria-selected',String(u===t)); $('sec-'+u).hidden=u!==t;});}));
+
+// Panel matemático
+const main=$('main'), mathBtn=$('mathBtn');
+function setMath(open){ main.classList.toggle('math-open',open); mathBtn.setAttribute('aria-expanded',String(open)); setTimeout(resize,30); if(open) updateMath(true); }
+mathBtn.addEventListener('click',()=>setMath(!main.classList.contains('math-open')));
+$('mathClose').addEventListener('click',()=>setMath(false));
+document.querySelectorAll('[data-card]').forEach(b=>b.addEventListener('click',()=>{ if(!main.classList.contains('math-open')) setMath(true); const c=$(b.dataset.card); setTimeout(()=>{c.scrollIntoView({behavior:'smooth',block:'start'}); flashCard(c);},60); }));
+const flashT=new Map(); let hlTimer=null;
+function flashCard(c){ c.classList.add('flash'); clearTimeout(flashT.get(c)); flashT.set(c,setTimeout(()=>c.classList.remove('flash'),2200));
+  document.querySelectorAll('#casc .b').forEach(b=>{ if(b.dataset.card===c.id){ b.classList.add('flash'); setTimeout(()=>b.classList.remove('flash'),2200);} }); }
+function highlight(eqs,hl){
+  (eqs||'').split(',').filter(Boolean).forEach(k=>{const c=$('eq-'+k); if(c) flashCard(c);});
+  if(hl){ ['wind','mass','gain','att','motor'].forEach(h=>main.classList.remove('hl-'+h)); main.classList.add('hl-'+hl); clearTimeout(hlTimer); hlTimer=setTimeout(()=>main.classList.remove('hl-'+hl),2600); }
+}
+document.querySelectorAll('.sl input').forEach(inp=>inp.addEventListener('input',()=>{const sl=inp.closest('.sl'); highlight(sl.dataset.eq,sl.dataset.hl);}));
+
+function bind(id,out,fmt,fn){const el=$(id); const f=()=>{const v=+el.value; $(out).textContent=fmt(v); fn(v);}; el.addEventListener('input',f); f(); return el;}
+const rX=bind('rX','vX',v=>v.toFixed(1)+' m',v=>REF.x=v);
+const rY=bind('rY','vY',v=>v.toFixed(1)+' m',v=>REF.y=v);
+const rZ=bind('rZ','vZ',v=>v.toFixed(1)+' m',v=>REF.z=v);
+const rPsi=bind('rPsi','vPsi',v=>v.toFixed(0)+'°',v=>REF.psi=v);
+bind('wS','vWS',v=>v.toFixed(1)+' m/s · '+(v*3.6).toFixed(0)+' km/h',v=>ENV.wind=v);
+const card=['N','NE','E','SE','S','SO','O','NO'];
+bind('wD','vWD',v=>v.toFixed(0)+'° · del '+card[Math.round(v/45)%8],v=>ENV.wdir=v);
+bind('wT','vWT',v=>(v*100).toFixed(0)+' %',v=>ENV.turb=v);
+bind('pL','vPL',v=>v.toFixed(2)+' kg',v=>ENV.payload=v);
+bind('mH','vMH',v=>(v*100).toFixed(0)+' %',v=>ENV.health[2]=v);
+const gainEls={};
+['kpxy','kixy','kdxy','kpz','kiz','kdz','kpa','kda'].forEach(k=>{gainEls[k]=bind(k,'v'+k,v=>k==='kpa'?v.toFixed(0):v.toFixed(k==='kixy'||k==='kiz'?2:1),v=>{G[k]=v; updWn();});});
+function updWn(){const wn=Math.sqrt(G.kpa), z=G.kda/(2*wn); $('wn').textContent=wn.toFixed(1)+' rad/s'; $('zeta').textContent=z.toFixed(2); $('resp').textContent=z<0.4?'muy oscilante':z<0.7?'subamortiguada':z<1.05?'bien amortiguada':'sobreamortiguada';}
+updWn();
+$('resetGains').addEventListener('click',()=>{Object.entries(DEF_GAINS).forEach(([k,v])=>{gainEls[k].value=v; gainEls[k].dispatchEvent(new Event('input'));});});
+$('kick').addEventListener('click',()=>{const a=Math.random()*Math.PI*2; X.v[0]+=1.6*Math.cos(a); X.v[1]+=1.6*Math.sin(a); X.w[0]+=(Math.random()-.5)*7; X.w[1]+=(Math.random()-.5)*7; X.w[2]+=(Math.random()-.5)*3; highlight('rot,att');});
+
+document.querySelectorAll('.mbtn').forEach(b=>b.addEventListener('click',()=>{
+  const m=b.dataset.m;
+  if(m==='land'&&mission==='land'){ /* despegar */ mission='hold'; REF.z=Math.max(REF.z,2); rZ.value=REF.z; rZ.dispatchEvent(new Event('input')); }
+  else { mission=m; }
+  if(m==='land'){ REF.x=+rX.value; REF.y=+rY.value; }
+  mt=0;
+  document.querySelectorAll('.mbtn').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.m===mission)));
+  const landBtn=document.querySelector('.mbtn[data-m="land"]'); landBtn.textContent=mission==='land'?'Despegar':'Aterrizar';
+  [rX,rY,rZ,rPsi].forEach(el=>el.disabled=!(mission==='hold'));
+  drawPath(); highlight('pos');
+}));
+
+/* ═════════════ Telemetría ═════════════ */
+const hist=[]; let histAcc=0;
+const trend=$('trend'), tctx=trend.getContext('2d');
+function sizeTrend(){const r=trend.getBoundingClientRect(); const d=Math.min(window.devicePixelRatio||1,2); trend.width=Math.round(r.width*d); trend.height=Math.round(r.height*d); tctx.setTransform(d,0,0,d,0,0); drawTrend();}
+function drawTrend(){
+  const w=trend.clientWidth,h=trend.clientHeight; if(!w) return; tctx.clearRect(0,0,w,h);
+  const Lm=30,Rm=6,gap=12, h1=(h-gap-14)/2;
+  const tEnd=X.t, t0=tEnd-10; const xs=t=>Lm+(t-t0)/10*(w-Lm-Rm);
+  tctx.font='10px "JetBrains Mono", monospace';
+  const plot=(top,lo,hi,ticks,series)=>{
+    const ys=v=>top+(1-(v-lo)/(hi-lo))*h1;
+    tctx.strokeStyle=css('--line'); tctx.fillStyle=css('--muted'); tctx.lineWidth=1; tctx.textAlign='right';
+    ticks.forEach(v=>{const y=ys(v); tctx.beginPath(); tctx.moveTo(Lm,y); tctx.lineTo(w-Rm,y); tctx.stroke(); tctx.fillText(v,Lm-4,y+3);});
+    series.forEach(([key,col,dash])=>{tctx.strokeStyle=css(col); tctx.setLineDash(dash?[4,3]:[]); tctx.lineWidth=dash?1.3:1.8; tctx.beginPath(); let s=false;
+      for(const p of hist){ if(p.t<t0) continue; const y=ys(clamp(p[key],lo,hi)); s?tctx.lineTo(xs(p.t),y):tctx.moveTo(xs(p.t),y); s=true;} tctx.stroke();});
+    tctx.setLineDash([]);
+  };
+  const zmax=Math.max(4,Math.ceil(Math.max(...hist.map(p=>Math.max(p.z,p.zr)),1)+0.5));
+  plot(2,0,zmax,[0,Math.round(zmax/2),zmax],[['zr','--ref',true],['z','--c-z']]);
+  plot(2+h1+gap,-30,30,[-30,0,30],[['phd','--c-x',true],['thd','--c-y',true],['ph','--c-x'],['th','--c-y']]);
+  tctx.fillStyle=css('--muted'); tctx.textAlign='left'; tctx.fillText('m',2,10); tctx.fillText('°',2,h1+gap+12);
+  tctx.textAlign='center'; for(let s=Math.ceil(t0);s<=tEnd;s+=2) tctx.fillText(s.toFixed(0)+' s',xs(s),h-2);
+}
+
+/* ═════════════ Valores en vivo de las ecuaciones ═════════════ */
+const f=(v,n=2)=>(Math.abs(v)<5e-4?0:v).toFixed(n);
+const deg=r=>r*180/Math.PI;
+const vec=(a,n=2)=>'('+a.map(x=>f(x,n)).join(', ')+')';
+function cells(pairs){return pairs.map(([k,v])=>'<span>'+k+' = <b>'+v+'</b></span>').join('');}
+function mtx(rows,n=2){return '<table class="mtx">'+rows.map(r=>'<tr>'+r.map(x=>'<td>'+f(x,n)+'</td>').join('')+'</tr>').join('')+'</table>';}
+function updateMath(force){
+  if(!main.classList.contains('math-open')&&!force) return;
+  const c=X.ctl, F=X.F;
+  $('lv-pos').innerHTML=cells([['e',vec(c.e)+' m'],['∫e dt',vec(X.I)],['a_des',vec(c.a)+' m/s²'],['a_f, a_l',f(c.af||0)+', '+f(c.al||0)],['T_cmd',f(c.Tc)+' N'],['m̂ / m real',M0.toFixed(2)+' / '+F.m.toFixed(2)+' kg'],['φ_d',f(deg(c.phid),1)+'°'],['θ_d',f(deg(c.thd),1)+'°']]);
+  const wn=Math.sqrt(G.kpa);
+  $('lv-att').innerHTML=cells([['η',vec(X.eta.map(deg),1)+'°'],['η_d',vec([c.phid,c.thd,c.psid].map(deg),1)+'°'],['ω',vec(X.w)+' rad/s'],['τ_cmd',vec(c.tau,3)+' N·m'],['ω_n',wn.toFixed(1)+' rad/s'],['ζ',(G.kda/(2*wn)).toFixed(2)]]);
+  $('lv-mix').innerHTML='<span>[T τ<sub>φ</sub> τ<sub>θ</sub> τ<sub>ψ</sub>]<sub>cmd</sub> '+mtx([[c.Tc],[c.tau[0]],[c.tau[1]],[c.tau[2]]],3)+'</span><span>→ T<sub>i,cmd</sub> '+mtx(c.Tcmd.map(x=>[x]),2)+'N</span><span>d = '+D.toFixed(4)+' m · c = '+C.toFixed(4)+' m'+(c.sat?' · <b class="flashtxt">saturado</b>':'')+'</span>';
+  $('lv-motor').innerHTML=X.Om.map((o,i)=>'<span>M'+(i+1)+' Ω = <b>'+o.toFixed(0)+'</b> rad/s · T = <b>'+F.Ti[i].toFixed(2)+'</b> N'+(ENV.health[i]<1?' · h = <b class="flashtxt">'+ENV.health[i].toFixed(2)+'</b>':'')+'</span>').join('')+'<span>ΣT = <b>'+F.T.toFixed(2)+' N</b> · peso m·g = <b>'+(F.m*g).toFixed(2)+' N</b></span>';
+  const thr=[F.R[0][2]*F.T,F.R[1][2]*F.T,F.R[2][2]*F.T];
+  $('lv-trans').innerHTML=cells([['m',F.m.toFixed(2)+' kg'],['R[0,0,T]',vec(thr)+' N'],['m g',(F.m*g).toFixed(2)+' N'],['w',vec(F.wv||[0,0,0],1)+' m/s'],['−k_d(ṗ−w)',vec(F.aero)+' N'],['p̈',vec(F.acc)+' m/s²'],['ṗ',vec(X.v)+' m/s'],['p',vec(X.p)+' m']]);
+  $('lv-R').innerHTML='<span>R = '+mtx(F.R,3)+'</span><span>φ = <b>'+f(deg(X.eta[0]),1)+'°</b> θ = <b>'+f(deg(X.eta[1]),1)+'°</b> ψ = <b>'+f(deg(X.eta[2]),1)+'°</b></span>';
+  $('lv-rot').innerHTML=cells([['τ',vec(F.tb||[0,0,0],3)+' N·m'],['ω',vec(X.w)+' rad/s'],['ω̇',vec(F.wd||[0,0,0],1)+' rad/s²'],['η̇',vec((F.etad||[0,0,0]).map(deg),1)+' °/s']]);
+}
+
+/* ═════════════ Bucle principal ═════════════ */
+const clockT=new THREE.Clock(); let acc=0, uiAcc=0, mathAcc=0, blink=0;
+const q=new THREE.Quaternion(), m4=new THREE.Matrix4(), up=new THREE.Vector3(0,1,0), tmp=new THREE.Vector3(), tmp2=new THREE.Vector3();
+let lastDronePos=V(0,0,X.p[2]+COMY);
+function frame(){
+  const dtw=Math.min(clockT.getDelta(),0.1);
+  acc+=dtw*speed; let n=0; while(acc>=DT&&n<120){ step(DT); acc-=DT; n++; } if(n>=120) acc=0;
+  const simDt=n*DT;
+
+  // Pose del dron: three = C·R·Cᵀ
+  const R=X.F.R; const Cm=[[1,0,0],[0,0,1],[0,-1,0]];
+  const M=[[0,0,0],[0,0,0],[0,0,0]];
+  for(let i=0;i<3;i++)for(let j=0;j<3;j++){let s=0; for(let a=0;a<3;a++)for(let b=0;b<3;b++) s+=Cm[i][a]*R[a][b]*Cm[j][b]; M[i][j]=s;}
+  m4.set(M[0][0],M[0][1],M[0][2],0, M[1][0],M[1][1],M[1][2],0, M[2][0],M[2][1],M[2][2],0, 0,0,0,1);
+  drone.quaternion.setFromRotationMatrix(m4);
+  drone.position.copy(V(X.p[0],X.p[1],X.p[2]));
+  body.position.y=COMY;
+  // Hélices
+  for(let i=0;i<4;i++){ const om=X.Om[i]; props[i].rotation.y+=SPIN[i]*om*simDt*0.045; discs[i].material.opacity=clamp((om-180)/700,0,0.32);
+    props[i].children.forEach((ch,k)=>{if(k>0) ch.visible=om<1200;}); }
+  blink+=dtw; leds[1].material.emissiveIntensity=leds[3].material.emissiveIntensity=(blink%1)<0.12?2.5:0.2;
+
+  // Fuerzas
+  if(showForces){
+    const F=X.F; const ub=tmp.set(0,1,0).applyQuaternion(drone.quaternion).clone();
+    for(let i=0;i<4;i++){ const wp=body.localToWorld(motorPos[i].clone().setY(0.06)); arrMot[i].position.copy(wp); arrMot[i].setDirection(ub); const l=Math.max(0.02,F.Ti[i]*FSC); arrMot[i].setLength(l,Math.min(0.05,l*0.4),0.025); }
+    const com=drone.position.clone().add(new THREE.Vector3(0,COMY,0));
+    arrT.position.copy(com); arrT.setDirection(ub); arrT.setLength(Math.max(0.05,F.T*FSC*0.5),0.06,0.035); arrT.visible=false;
+    arrG.position.copy(com); arrG.setDirection(new THREE.Vector3(0,-1,0)); arrG.setLength(F.m*g*FSC*0.5,0.06,0.035);
+    const ae=V(F.aero[0],F.aero[1],F.aero[2]); const al=ae.length(); arrW.visible=al>0.15; if(al>0.15){arrW.position.copy(com); arrW.setDirection(ae.clone().normalize()); arrW.setLength(al*FSC*2,0.05,0.03);}
+  }
+
+  // Referencia
+  refG.position.copy(V(rp[0],rp[1],rp[2]+COMY)); refG.rotation.y=rpsi;
+  refLine.geometry.setFromPoints([V(rp[0],rp[1],rp[2]+COMY),V(rp[0],rp[1],0)]); refLine.computeLineDistances();
+  // Estela
+  trAcc+=simDt; if(trAcc>0.04){trAcc=0; if(trN<NTR) trN++; trPos.copyWithin(3,0,(NTR-1)*3); const dp=V(X.p[0],X.p[1],X.p[2]+COMY); trPos[0]=dp.x; trPos[1]=dp.y; trPos[2]=dp.z; trailGeo.attributes.position.needsUpdate=true; trailGeo.setDrawRange(0,trN);}
+  // Viento
+  const wv=X.F.wv||[0,0,0]; const wt=V(wv[0],wv[1],wv[2]); windPts.visible=Math.hypot(wv[0],wv[1])>0.4;
+  if(windPts.visible){ const cx=drone.position.x, cz=drone.position.z;
+    for(let i=0;i<NWP;i++){ let k=i*3; wpPos[k]+=wt.x*simDt; wpPos[k+1]+=wt.y*simDt*0.3; wpPos[k+2]+=wt.z*simDt;
+      if(wpPos[k]-cx>7) wpPos[k]-=14; if(wpPos[k]-cx<-7) wpPos[k]+=14; if(wpPos[k+2]-cz>7) wpPos[k+2]-=14; if(wpPos[k+2]-cz<-7) wpPos[k+2]+=14; if(wpPos[k+1]<0.05) wpPos[k+1]=6.9; if(wpPos[k+1]>7) wpPos[k+1]=0.1; }
+    wpGeo.attributes.position.needsUpdate=true; }
+  // Sol siguiendo al dron (sombras nítidas)
+  sun.position.copy(drone.position).add(tmp2.set(6,12,4)); sun.target.position.copy(drone.position);
+  // Cámara
+  const dp=drone.position.clone().add(new THREE.Vector3(0,COMY,0));
+  if(follow){ const delta=dp.clone().sub(lastDronePos); camera.position.add(delta); controls.target.add(delta); }
+  lastDronePos.copy(dp);
+  controls.update(); renderer.render(scene,camera);
+
+  // Historial y UI
+  histAcc+=simDt; if(histAcc>=0.05){histAcc=0; const c=X.ctl; hist.push({t:X.t,z:X.p[2],zr:rp[2],ph:deg(X.eta[0]),th:deg(X.eta[1]),phd:deg(c.phid),thd:deg(c.thd)}); while(hist.length&&hist[0].t<X.t-10.5) hist.shift();}
+  uiAcc+=dtw; mathAcc+=dtw;
+  if(uiAcc>0.1){uiAcc=0;
+    const sp=Math.hypot(...X.v);
+    $('hZ').textContent=X.p[2].toFixed(2)+' m'; $('hV').textContent=sp.toFixed(2)+' m/s'; $('hR').textContent=f(deg(X.eta[0]),1)+'°'; $('hP').textContent=f(deg(X.eta[1]),1)+'°'; $('hY').textContent=f(deg(X.eta[2]),0)+'°'; $('hT').textContent=X.F.T.toFixed(1)+' N';
+    for(let i=0;i<4;i++){const el=$('m'+(i+1)); el.querySelector('.lvl').style.height=(X.Om[i]/OMAX*100).toFixed(0)+'%'; el.dataset.sat=X.Om[i]>OMAX*0.97?'1':'0';}
+    const st=$('state'); const landed=X.F.landed; st.dataset.s=landed?'':X.ctl.sat?'sat':'fly'; $('stateTxt').textContent=landed?'En tierra':X.ctl.sat?'Motores saturados':'En vuelo';
+    $('clock').textContent='t = '+X.t.toFixed(1)+' s'; drawTrend();
+  }
+  if(mathAcc>0.15){mathAcc=0; updateMath();}
+  requestAnimationFrame(frame);
+}
+resize(); applyTheme(); drawPath();
+requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>
