@@ -6,6 +6,8 @@ Simulador interactivo de un cuadricóptero de 450 mm. Usa dinámica de cuerpo r�
 
 Abre `cuadricoptero.html` en el navegador con doble clic. No necesita servidor ni instalación. three.js y MathJax están incluidos en `vendor/`, así que funciona sin internet. Si falta algún archivo local, se cargan desde un CDN.
 
+El botón **"▶ Demo guiada"** reproduce una secuencia de 76 s con subtítulos. Sube la altura, agrega carga, mete viento, da empujones con buen y mal amortiguamiento, simula la falla de un motor y vuela un círculo, todo con el panel de ecuaciones abierto. Está grabada en [`demo_dron.mp4`](demo_dron.mp4).
+
 | Pestaña | Qué se puede mover |
 |---|---|
 | **Misión** | Punto fijo (x, y, altura, rumbo) o trayectorias: círculo, ocho, cuadrado, espiral; aterrizar y despegar |
