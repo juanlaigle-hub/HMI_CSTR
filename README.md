@@ -59,12 +59,13 @@ the reactor runs away to about 339 K; raising F_j to 40 L/min and lowering T_j,i
 
 ## Also in this repository: 3D control simulators
 
-Two standalone simulators open directly in a browser and work offline. Each has an optional "∑ Ver la matemática" panel that shows the equations with live values and highlights the term that changes when a control is moved, plus a "▶ Demo guiada" button with a recorded video.
+Three standalone simulators open directly in a browser and work offline. Each has an optional "∑ Ver la matemática" panel that shows the equations with live values and highlights the term that changes when a control is moved, plus a "▶ Demo guiada" button with a recorded video.
 
 | Folder | Simulator | Control | Math | Video |
 |---|---|---|---|---|
 | `drone_3d/` | 450 mm quadcopter, 6-DOF rigid-body dynamics, wind gusts, payload, motor failure | Cascaded PID (position → attitude) + X mixer | [`drone_3d/README.md`](drone_3d/README.md) | [`demo_dron.mp4`](drone_3d/demo_dron.mp4) |
 | `robot_balancin/` | Two-wheeled self-balancing robot with adjustable legs | LQR solved in the browser, with live closed-loop poles | [`robot_balancin/README.md`](robot_balancin/README.md) | [`demo_robot.mp4`](robot_balancin/demo_robot.mp4) |
+| `bombeo_mecanico/` | Sucker-rod pumping unit (oil & gas): beam pump, 1500 m elastic rod string, downhole pump with valves, live dynamometer cards | Pump-off controller (POC) with a variable-speed drive; counterbalance and gearbox torque | [`bombeo_mecanico/README.md`](bombeo_mecanico/README.md) | [`demo_bombeo.mp4`](bombeo_mecanico/demo_bombeo.mp4) |
 
 ## How to Use
 
