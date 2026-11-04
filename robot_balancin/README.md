@@ -2,7 +2,7 @@
 
 Simulador interactivo de un robot autoequilibrado de dos ruedas con patas de altura variable. La física es no lineal, el control es óptimo (LQR) y se calcula en el propio navegador. La escena 3D (three.js) muestra el robot, la vertical, el ángulo θ, el centro de masa, el par de cada rueda y la huella en el suelo. El panel **"∑ Ver la matemática"** muestra las ecuaciones de este documento con sus valores en vivo, incluidos los **polos del sistema en el plano complejo**. Al mover un control, se resaltan en rosa la ecuación y el término que cambia.
 
-**Video de la demo guiada:** [`demo_robot.mp4`](demo_robot.mp4) (74 s).
+**Video de la demo guiada:** [`demo_robot.mp4`](demo_robot.mp4) (78 s).
 
 ## Cómo abrirlo
 
