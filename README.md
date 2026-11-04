@@ -57,9 +57,14 @@ k0 and UA are computed so that the base case (F_in = 10 L/min, F_j = 20 L/min, T
 is a stable steady state with T = 310 K and X_A = 0.15. With the +5 K preheater failure and no operator action
 the reactor runs away to about 339 K; raising F_j to 40 L/min and lowering T_j,in to 285 K brings it back to about 316 K.
 
-## Also in this repository: 3D quadcopter simulator
+## Also in this repository: 3D control simulators
 
-`drone_3d/` holds a separate interactive simulator of a 450 mm quadcopter: 6-DOF rigid-body dynamics, cascaded PID control, motor dynamics, wind gusts, payload and motor failures. Its optional "∑ Ver la matemática" panel shows the equations with live values and highlights the term that changes when a control is moved. Open `drone_3d/cuadricoptero.html` in a browser. The full derivation is in [`drone_3d/README.md`](drone_3d/README.md).
+Two standalone simulators open directly in a browser and work offline. Each has an optional "∑ Ver la matemática" panel that shows the equations with live values and highlights the term that changes when a control is moved, plus a "▶ Demo guiada" button with a recorded video.
+
+| Folder | Simulator | Control | Math | Video |
+|---|---|---|---|---|
+| `drone_3d/` | 450 mm quadcopter, 6-DOF rigid-body dynamics, wind gusts, payload, motor failure | Cascaded PID (position → attitude) + X mixer | [`drone_3d/README.md`](drone_3d/README.md) | [`demo_dron.mp4`](drone_3d/demo_dron.mp4) |
+| `robot_balancin/` | Two-wheeled self-balancing robot with adjustable legs | LQR solved in the browser, with live closed-loop poles | [`robot_balancin/README.md`](robot_balancin/README.md) | [`demo_robot.mp4`](robot_balancin/demo_robot.mp4) |
 
 ## How to Use
 

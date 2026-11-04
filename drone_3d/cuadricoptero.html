@@ -40,6 +40,7 @@
   color-scheme:dark;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 var(--f-body);
   padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px));
   padding-block:12px 16px; display:flex; flex-direction:column; gap:12px}
@@ -145,6 +146,10 @@ main.math-open .math{display:flex}
 .math .hl-wind,.math .hl-mass,.math .hl-gain,.math .hl-att,.math .hl-motor,.math .hl-yaw{transition:fill .25s,color .25s}
 main.hl-wind .math .hl-wind, main.hl-mass .math .hl-mass, main.hl-gain .math .hl-gain, main.hl-att .math .hl-att, main.hl-motor .math .hl-motor{fill:var(--hi); color:var(--hi)}
 .flashtxt{color:var(--hi) !important}
+.demobtn{font:600 .9rem var(--f-display); letter-spacing:.04em; border:1.5px solid var(--fg); color:var(--fg); background:transparent; border-radius:8px; padding:6px 12px; cursor:pointer}
+.demobtn[aria-pressed="true"]{background:var(--fg); color:var(--bg)}
+.caption{position:absolute; left:50%; bottom:84px; transform:translateX(-50%); width:min(760px, calc(100% - 40px)); background:rgba(12,16,20,.86); color:#f3f5f7; border-radius:10px; padding:10px 14px; display:flex; gap:12px; align-items:flex-start; font-size:.98rem; line-height:1.4; box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.caption b{font:700 .78rem var(--f-display); letter-spacing:.08em; color:#ff9a5c; white-space:nowrap; padding-top:3px}
 @media (prefers-reduced-motion: reduce){ .eq{transition:none} }
 </style>
 </head>
@@ -163,6 +168,7 @@ main.hl-wind .math .hl-wind, main.hl-mass .math .hl-mass, main.hl-gain .math .hl
     <button id="sp025" aria-pressed="false">Cámara lenta ×¼</button>
     <button id="sp1" aria-pressed="true">Tiempo real</button>
   </div>
+  <button class="demobtn" id="demoBtn" aria-pressed="false">▶ Demo guiada</button>
   <button class="mathbtn" id="mathBtn" aria-expanded="false" aria-controls="math"><span>∑</span>Ver la matemática</button>
 </header>
 
@@ -187,6 +193,7 @@ main.hl-wind .math .hl-wind, main.hl-mass .math .hl-mass, main.hl-gain .math .hl
       <div class="mot" id="m3"><div class="tube"><div class="lvl"></div></div><span>M3</span></div>
       <div class="mot" id="m4"><div class="tube"><div class="lvl"></div></div><span>M4</span></div>
     </div>
+    <div class="caption" id="cap" hidden><b id="capN"></b><span id="capT"></span></div>
     <div class="orient">Hélices naranjas = frente · Arrastra para girar la cámara</div>
   </section>
 
@@ -617,12 +624,14 @@ function setMath(open){ main.classList.toggle('math-open',open); mathBtn.setAttr
 mathBtn.addEventListener('click',()=>setMath(!main.classList.contains('math-open')));
 $('mathClose').addEventListener('click',()=>setMath(false));
 document.querySelectorAll('[data-card]').forEach(b=>b.addEventListener('click',()=>{ if(!main.classList.contains('math-open')) setMath(true); const c=$(b.dataset.card); setTimeout(()=>{c.scrollIntoView({behavior:'smooth',block:'start'}); flashCard(c);},60); }));
-const flashT=new Map(); let hlTimer=null;
-function flashCard(c){ c.classList.add('flash'); clearTimeout(flashT.get(c)); flashT.set(c,setTimeout(()=>c.classList.remove('flash'),2200));
-  document.querySelectorAll('#casc .b').forEach(b=>{ if(b.dataset.card===c.id){ b.classList.add('flash'); setTimeout(()=>b.classList.remove('flash'),2200);} }); }
+// Temporizadores atados al reloj de la interfaz (así la grabación cuadro a cuadro conserva los tiempos)
+let uiClock=0; const timers=[]; const later=(sec,fn,key)=>{ if(key){const i=timers.findIndex(t=>t.key===key); if(i>=0) timers.splice(i,1);} timers.push({due:uiClock+sec,fn,key}); };
+function runTimers(){ for(let i=timers.length-1;i>=0;i--) if(timers[i].due<=uiClock){const t=timers.splice(i,1)[0]; t.fn();} }
+function flashCard(c){ c.classList.add('flash'); later(2.4,()=>c.classList.remove('flash'),'f-'+c.id);
+  document.querySelectorAll('#casc .b').forEach(b=>{ if(b.dataset.card===c.id){ b.classList.add('flash'); later(2.4,()=>b.classList.remove('flash'),'c-'+c.id);} }); }
 function highlight(eqs,hl){
   (eqs||'').split(',').filter(Boolean).forEach(k=>{const c=$('eq-'+k); if(c) flashCard(c);});
-  if(hl){ ['wind','mass','gain','att','motor'].forEach(h=>main.classList.remove('hl-'+h)); main.classList.add('hl-'+hl); clearTimeout(hlTimer); hlTimer=setTimeout(()=>main.classList.remove('hl-'+hl),2600); }
+  if(hl){ ['wind','mass','gain','att','motor'].forEach(h=>main.classList.remove('hl-'+h)); main.classList.add('hl-'+hl); later(2.8,()=>main.classList.remove('hl-'+hl),'hl'); }
 }
 document.querySelectorAll('.sl input').forEach(inp=>inp.addEventListener('input',()=>{const sl=inp.closest('.sl'); highlight(sl.dataset.eq,sl.dataset.hl);}));
 
@@ -701,11 +710,13 @@ function updateMath(force){
 }
 
 /* ═════════════ Bucle principal ═════════════ */
+const CAPTURE=new URLSearchParams(location.search).get('capture')==='1';
 const clockT=new THREE.Clock(); let acc=0, uiAcc=0, mathAcc=0, blink=0;
 const q=new THREE.Quaternion(), m4=new THREE.Matrix4(), up=new THREE.Vector3(0,1,0), tmp=new THREE.Vector3(), tmp2=new THREE.Vector3();
 let lastDronePos=V(0,0,X.p[2]+COMY);
-function frame(){
-  const dtw=Math.min(clockT.getDelta(),0.1);
+function frame(dtFixed){
+  const dtw=dtFixed!==undefined?dtFixed:Math.min(clockT.getDelta(),0.1);
+  uiClock+=dtw; runTimers();
   acc+=dtw*speed; let n=0; while(acc>=DT&&n<120){ step(DT); acc-=DT; n++; } if(n>=120) acc=0;
   const simDt=n*DT;
 
@@ -762,10 +773,45 @@ function frame(){
     $('clock').textContent='t = '+X.t.toFixed(1)+' s'; drawTrend();
   }
   if(mathAcc>0.15){mathAcc=0; updateMath();}
-  requestAnimationFrame(frame);
+  demoTick(simDt);
+  if(!CAPTURE) requestAnimationFrame(()=>frame());
 }
+
+/* ═════════════ Demo guiada ═════════════ */
+function setSlider(id,v){ const el=$(id); const sec=el.closest('.sec'); if(sec&&sec.hidden){ const t=sec.id.replace('sec-',''); $('tab-'+t).click(); } el.value=v; el.dispatchEvent(new Event('input')); }
+function showCard(id){ if(!main.classList.contains('math-open')) setMath(true); const c=$(id); c.scrollIntoView({behavior:CAPTURE?'auto':'smooth',block:'start'}); flashCard(c); }
+function setMission(m){ document.querySelector('.mbtn[data-m="'+m+'"]').click(); }
+const DEMO=[
+  {t:0,  c:'Vuelo estacionario a 2,5 m. Cada motor gira a unos 606 rad/s para sostener los 14,7 N del peso.', a:()=>{showCard('eq-motor');}},
+  {t:6,  c:'Subo la altura de referencia a 4,5 m: el PID de posición pide más empuje T<sub>cmd</sub> y el dron sube sin pasarse.', a:()=>{$('tab-mis').click(); setSlider('rZ',4.5); showCard('eq-pos');}},
+  {t:13, c:'Agrego 0,8 kg de carga que el controlador no conoce. El dron baja un poco y el término integral ∫e dt va compensando la masa que falta.', a:()=>{setSlider('pL',0.8); showCard('eq-trans'); highlight('','mass');}},
+  {t:22, c:'Viento del oeste a 8 m/s: el arrastre −k<sub>d</sub>(ṗ − w) lo empuja y el dron se inclina contra el viento para quedarse en su lugar.', a:()=>{setSlider('wS',8); showCard('eq-trans'); highlight('','wind');}},
+  {t:30, c:'¡Empujón! El lazo interno de actitud (PD) lo vuelve a nivelar en menos de un segundo.', a:()=>{$('kick').click(); showCard('eq-att');}},
+  {t:35, c:'Bajo K<sub>d,η</sub> de 22 a 6: el amortiguamiento ζ cae de 0,82 a 0,22.', a:()=>{setSlider('kda',6); showCard('eq-att');}},
+  {t:38, c:'Mismo empujón con poco amortiguamiento: ahora el dron oscila varias veces antes de estabilizarse.', a:()=>{$('kick').click();}},
+  {t:45, c:'Restauro las ganancias de fábrica.', a:()=>{$('resetGains').click(); setSlider('wS',4);}},
+  {t:48, c:'El motor M3 pierde el 40 % de eficiencia: el mezclador le pide más y el resto compensa. Mira las barras de los motores.', a:()=>{setSlider('mH',0.6); showCard('eq-mix');}},
+  {t:56, c:'Misión círculo: la referencia se mueve y el PID la persigue usando también la velocidad de la trayectoria.', a:()=>{setMission('circle'); showCard('eq-pos');}},
+  {t:70, c:'Fin de la demo. Ahora prueba tú: cada control tiene un botón f(x) que lleva a su ecuación.', a:()=>{}},
+  {t:76, c:null, a:()=>stopDemo()},
+];
+let demoOn=false, demoT=0, demoI=0;
+function resetAll(){
+  [['rX',0],['rY',0],['rZ',2.5],['rPsi',0],['wS',0],['wD',270],['wT',0],['pL',0],['mH',1]].forEach(([id,v])=>{ $(id).value=v; $(id).dispatchEvent(new Event('input')); });
+  $('resetGains').click(); if(mission!=='hold') setMission('hold');
+  resetState(2.5); for(let i=0;i<3;i++){rp[i]=[0,0,2.5][i]; rv[i]=0;} rpsi=0; X.I=[0,0,0]; hist.length=0; trN=0; trailGeo.setDrawRange(0,0);
+}
+function startDemo(){ resetAll(); demoOn=true; demoT=0; demoI=0; speed=1; Object.values(spB).forEach(x=>x.setAttribute('aria-pressed',String(x===spB[1]))); $('demoBtn').setAttribute('aria-pressed','true'); $('demoBtn').textContent='■ Detener demo'; }
+function stopDemo(){ demoOn=false; $('cap').hidden=true; $('demoBtn').setAttribute('aria-pressed','false'); $('demoBtn').textContent='▶ Demo guiada'; }
+function demoTick(simDt){
+  if(!demoOn) return; demoT+=simDt;
+  while(demoI<DEMO.length && demoT>=DEMO[demoI].t){ const st=DEMO[demoI]; demoI++; if(st.c){ $('cap').hidden=false; $('capN').textContent=demoI+' / '+(DEMO.length-1); $('capT').innerHTML=st.c; } st.a(); }
+}
+$('demoBtn').addEventListener('click',()=>demoOn?stopDemo():startDemo());
+window.__sim={frame:(dt)=>frame(dt), startDemo, demoDone:()=>!demoOn, demoTime:()=>demoT};
+
 resize(); applyTheme(); drawPath();
-requestAnimationFrame(frame);
+if(!CAPTURE) requestAnimationFrame(()=>frame());
 })();
 </script>
 

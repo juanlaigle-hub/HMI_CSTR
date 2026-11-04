@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Robot Balancín B-2</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: laboratorio de control — visor 3D grande, consola a la derecha, cuaderno de ecuaciones desplegable. Azul de robot de servicio; ámbar para referencias. */
+:root{
+  --bg:#e8ecef; --panel:#f5f7f8; --raise:#ffffff; --fg:#131a20; --muted:#58646e; --line:#cdd5db;
+  --accent:#1864ab; --accent-ink:#ffffff; --ref:#d97706; --hi:#c2255c; --hi-bg:#fde8ef;
+  --ok:#2b8a3e; --warn:#c77700; --crit:#c92a2a;
+  --sky:#dde5ea; --ground:#c9d1d6; --grid1:#9ba8b1; --grid2:#b9c3ca;
+  --c-th:#1864ab; --c-x:#2b8a3e; --c-tau:#ae3ec9;
+  --f-display:"Chakra Petch","Bahnschrift","Arial Narrow",sans-serif;
+  --f-body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1418; --panel:#151b20; --raise:#1c2329; --fg:#e3e9ee; --muted:#8d9aa5; --line:#2a333b;
+    --accent:#4dabf7; --accent-ink:#06131f; --ref:#ffa94d; --hi:#ff6b9d; --hi-bg:#3a1a27;
+    --ok:#51cf66; --warn:#fcc419; --crit:#ff6b6b;
+    --sky:#131a20; --ground:#192027; --grid1:#34404a; --grid2:#222a32;
+    --c-th:#4dabf7; --c-x:#69db7c; --c-tau:#da77f2;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1418; --panel:#151b20; --raise:#1c2329; --fg:#e3e9ee; --muted:#8d9aa5; --line:#2a333b;
+  --accent:#4dabf7; --accent-ink:#06131f; --ref:#ffa94d; --hi:#ff6b9d; --hi-bg:#3a1a27;
+  --ok:#51cf66; --warn:#fcc419; --crit:#ff6b6b;
+  --sky:#131a20; --ground:#192027; --grid1:#34404a; --grid2:#222a32;
+  --c-th:#4dabf7; --c-x:#69db7c; --c-tau:#da77f2;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 var(--f-body);
+  padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px));
+  padding-block:12px 16px; display:flex; flex-direction:column; gap:12px}
+@media (min-width: 1000px){ html,body{height:100%} body{overflow:hidden} main{flex:1; min-height:0} }
+
+header.bar{display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px}
+.brand{min-width:0}
+.brand h1{margin:0; font:700 1.6rem/1 var(--f-display); letter-spacing:.02em; text-wrap:balance}
+.brand h1 em{font-style:normal; color:var(--accent)}
+.brand p{margin:2px 0 0; color:var(--muted); font-size:.85rem}
+.spacer{flex:1}
+.chip{font:600 .78rem var(--f-display); letter-spacing:.08em; text-transform:uppercase; padding:4px 10px; border-radius:999px; border:1.5px solid var(--line); color:var(--muted); display:inline-flex; gap:7px; align-items:center; background:var(--panel)}
+.chip i{width:8px; height:8px; border-radius:50%; background:var(--muted)}
+.chip[data-s="ok"]{border-color:var(--ok); color:var(--ok)} .chip[data-s="ok"] i{background:var(--ok)}
+.chip[data-s="sat"]{border-color:var(--warn); color:var(--warn)} .chip[data-s="sat"] i{background:var(--warn)}
+.chip[data-s="fall"]{border-color:var(--crit); color:var(--crit)} .chip[data-s="fall"] i{background:var(--crit)}
+.clock{font:.82rem var(--f-mono); color:var(--muted); font-variant-numeric:tabular-nums}
+.seg{display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; background:var(--panel)}
+.seg button{font:500 .8rem var(--f-body); border:0; background:transparent; color:var(--fg); padding:6px 10px; cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--fg); color:var(--bg)}
+.mathbtn{font:600 .9rem var(--f-display); letter-spacing:.04em; border:1.5px solid var(--accent); color:var(--accent); background:transparent; border-radius:8px; padding:6px 12px; cursor:pointer; display:inline-flex; gap:8px; align-items:center}
+.mathbtn[aria-expanded="true"]{background:var(--accent); color:var(--accent-ink)}
+.mathbtn span{font-family:"Times New Roman",serif; font-size:1.15rem; line-height:1}
+.demobtn{font:600 .9rem var(--f-display); letter-spacing:.04em; border:1.5px solid var(--fg); color:var(--fg); background:transparent; border-radius:8px; padding:6px 12px; cursor:pointer}
+.demobtn[aria-pressed="true"]{background:var(--fg); color:var(--bg)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--ref); outline-offset:2px}
+
+main{display:grid; grid-template-columns:minmax(0,1fr) 330px; gap:12px}
+main.math-open{grid-template-columns:minmax(0,1fr) 330px 440px}
+@media (max-width: 1399px){ main.math-open{grid-template-columns:minmax(0,1fr) 330px} }
+@media (max-width: 999px){ main, main.math-open{grid-template-columns:minmax(0,1fr)} }
+
+.view{position:relative; border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--sky); min-height:360px}
+@media (max-width: 999px){ .view{height:62vh} }
+.view canvas{display:block; touch-action:none}
+.hud{position:absolute; left:10px; top:10px; display:grid; grid-template-columns:auto auto; gap:1px 10px; padding:8px 10px; border-radius:8px; background:color-mix(in srgb, var(--raise) 82%, transparent); border:1px solid var(--line); font:500 .76rem var(--f-mono); font-variant-numeric:tabular-nums}
+.hud span:nth-child(odd){color:var(--muted)}
+.wheels{position:absolute; left:10px; bottom:10px; display:grid; grid-template-columns:repeat(2,auto); gap:10px; padding:8px 10px; border-radius:8px; background:color-mix(in srgb, var(--raise) 82%, transparent); border:1px solid var(--line)}
+.wh{display:grid; justify-items:center; gap:3px; font:500 .68rem var(--f-mono); color:var(--muted)}
+.wh .tube{width:16px; height:60px; border-radius:4px; background:var(--panel); border:1px solid var(--line); position:relative; overflow:hidden}
+.wh .mid{position:absolute; left:0; right:0; top:50%; height:1px; background:var(--muted)}
+.wh .lvl{position:absolute; left:0; right:0; background:var(--accent)}
+.wh[data-sat="1"] .lvl{background:var(--warn)}
+.viewopts{position:absolute; right:10px; top:10px; display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-end; max-width:60%}
+.tog{font:500 .74rem var(--f-body); border:1px solid var(--line); background:color-mix(in srgb, var(--raise) 85%, transparent); color:var(--fg); border-radius:999px; padding:4px 10px; cursor:pointer}
+.tog[aria-pressed="true"]{border-color:var(--accent); color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent)}
+.thtag{position:absolute; transform:translate(-50%,-50%); font:600 .8rem var(--f-mono); color:var(--hi); background:color-mix(in srgb, var(--raise) 85%, transparent); padding:1px 6px; border-radius:5px; pointer-events:none; white-space:nowrap}
+.caption{position:absolute; left:50%; bottom:92px; transform:translateX(-50%); width:min(760px, calc(100% - 40px)); background:rgba(12,16,20,.86); color:#f3f5f7; border-radius:10px; padding:10px 14px; display:flex; gap:12px; align-items:flex-start; font-size:.98rem; line-height:1.4; box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.caption b{font:700 .78rem var(--f-display); letter-spacing:.08em; color:#74c0fc; white-space:nowrap; padding-top:3px}
+.orient{position:absolute; right:10px; bottom:10px; font-size:.7rem; color:var(--muted); background:color-mix(in srgb, var(--raise) 80%, transparent); padding:4px 8px; border-radius:6px; text-align:right}
+
+.panel{display:flex; flex-direction:column; gap:10px; min-height:0; overflow:auto}
+.card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; display:grid; gap:10px}
+.tabs{display:grid; grid-template-columns:repeat(3,1fr); border:1px solid var(--line); border-radius:8px; overflow:hidden}
+.tabs button{font:600 .8rem var(--f-display); letter-spacing:.05em; text-transform:uppercase; border:0; background:var(--raise); color:var(--muted); padding:8px 4px; cursor:pointer}
+.tabs button+button{border-left:1px solid var(--line)}
+.tabs button[aria-selected="true"]{background:var(--fg); color:var(--bg)}
+.sec{display:grid; gap:10px}
+.sec h3{margin:0; font:600 .74rem var(--f-display); letter-spacing:.1em; text-transform:uppercase; color:var(--muted)}
+.missions{display:grid; grid-template-columns:repeat(2,1fr); gap:6px}
+.mbtn{font:500 .8rem var(--f-body); padding:8px 6px; border-radius:8px; border:1px solid var(--line); background:var(--raise); color:var(--fg); cursor:pointer}
+.mbtn[aria-pressed="true"]{border-color:var(--accent); color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent)}
+.sl{display:grid; gap:2px}
+.sl .row{display:flex; align-items:center; gap:6px; font-size:.82rem}
+.sl .row label{flex:1; min-width:0}
+.sl output{font:500 .8rem var(--f-mono); font-variant-numeric:tabular-nums; white-space:nowrap}
+.sl input[type=range]{width:100%; accent-color:var(--accent)}
+.sl input:disabled{opacity:.45}
+.fx{font:italic 600 .72rem "Times New Roman",serif; border:1px solid var(--line); background:var(--raise); color:var(--muted); border-radius:5px; padding:1px 5px; cursor:pointer; line-height:1.3}
+.fx:hover{color:var(--hi); border-color:var(--hi)}
+.note{margin:0; font-size:.75rem; color:var(--muted)}
+.btnrow{display:grid; grid-template-columns:1fr 1fr; gap:6px}
+.act{font:600 .82rem var(--f-body); padding:8px; border-radius:8px; border:1px solid var(--accent); background:transparent; color:var(--accent); cursor:pointer}
+.act.warn{border-color:var(--crit); color:var(--crit)}
+.chk{display:flex; gap:8px; align-items:center; font-size:.82rem}
+.chk input{accent-color:var(--accent); width:16px; height:16px}
+.kv{display:flex; flex-wrap:wrap; gap:2px 12px; font-size:.78rem; color:var(--muted)}
+.kv b{font:500 .78rem var(--f-mono); color:var(--fg)}
+.trend{width:100%; height:170px; display:block}
+.tl{display:flex; flex-wrap:wrap; gap:4px 12px; font-size:.72rem; color:var(--muted)}
+.tl i{display:inline-block; width:14px; height:2px; margin-right:4px; vertical-align:middle}
+
+.math{display:none; flex-direction:column; gap:10px; min-height:0; overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px}
+main.math-open .math{display:flex}
+@media (max-width: 1399px){
+  main.math-open .math{position:fixed; z-index:20; top:max(12px, env(safe-area-inset-top, 0px)); bottom:max(12px, env(safe-area-inset-bottom, 0px)); right:max(12px, env(safe-area-inset-right, 0px)); width:min(460px, calc(100vw - 24px)); box-shadow:0 12px 40px rgba(0,0,0,.28)}
+}
+.math-head{display:flex; align-items:center; gap:8px}
+.math-head h2{margin:0; font:700 1.15rem var(--f-display); flex:1}
+.x{border:1px solid var(--line); background:var(--raise); color:var(--fg); border-radius:6px; padding:3px 9px; cursor:pointer}
+.math p.lead{margin:0; font-size:.82rem; color:var(--muted)}
+.casc{display:flex; flex-wrap:wrap; align-items:center; gap:4px; font-size:.72rem}
+.casc .b{border:1px solid var(--line); background:var(--raise); border-radius:6px; padding:3px 7px; cursor:pointer; color:var(--fg); font:500 .72rem var(--f-body)}
+.casc .arr{color:var(--muted)}
+.casc .b.flash{border-color:var(--hi); color:var(--hi); background:var(--hi-bg)}
+.eq{border:1px solid var(--line); background:var(--raise); border-radius:10px; padding:10px 12px; display:grid; gap:6px; scroll-margin-top:8px; transition:border-color .3s, box-shadow .3s}
+.eq.flash{border-color:var(--hi); box-shadow:0 0 0 2px var(--hi-bg), 0 0 0 3px var(--hi)}
+.eq h4{margin:0; display:flex; align-items:baseline; gap:8px; font:600 .9rem var(--f-display); letter-spacing:.02em}
+.eq h4 small{font:500 .68rem var(--f-mono); color:var(--muted); letter-spacing:0}
+.eq .tex{overflow-x:auto; overflow-y:hidden; font-size:.95rem; padding:2px 0}
+.eq .tex mjx-container{margin:.3em 0 !important}
+.eq p{margin:0; font-size:.78rem; color:var(--muted)}
+.live{display:grid; grid-template-columns:repeat(auto-fill,minmax(175px,1fr)); gap:3px 10px; font:400 .74rem var(--f-mono); font-variant-numeric:tabular-nums; border-top:1px dashed var(--line); padding-top:6px}
+.live span b{font-weight:500; color:var(--fg)} .live span{color:var(--muted)}
+.mtx{border-collapse:collapse; font:400 .74rem var(--f-mono); font-variant-numeric:tabular-nums}
+.mtx td{padding:1px 6px; text-align:right}
+.mtx tr td:first-child{border-left:1.5px solid var(--muted)} .mtx tr td:last-child{border-right:1.5px solid var(--muted)}
+.mtxwrap{display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; border-top:1px dashed var(--line); padding-top:6px; font:400 .74rem var(--f-mono); color:var(--muted)}
+.mtxwrap > span{display:flex; align-items:center; gap:6px; flex-wrap:wrap}
+.poles{width:100%; height:200px; display:block; background:var(--panel); border-radius:8px}
+.math .hl-geom,.math .hl-q,.math .hl-r,.math .hl-tau,.math .hl-yaw{transition:fill .25s,color .25s}
+main.hl-geom .math .hl-geom, main.hl-q .math .hl-q, main.hl-r .math .hl-r, main.hl-tau .math .hl-tau, main.hl-yaw .math .hl-yaw{fill:var(--hi); color:var(--hi)}
+.flashtxt{color:var(--hi) !important}
+@media (prefers-reduced-motion: reduce){ .eq{transition:none} }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="brand">
+    <h1>Robot balancín <em>B-2</em></h1>
+    <p>Péndulo invertido sobre dos ruedas · control óptimo LQR · patas de altura variable</p>
+  </div>
+  <div class="spacer"></div>
+  <span class="chip" id="state" data-s="ok"><i></i><span id="stateTxt">Equilibrado</span></span>
+  <span class="clock" id="clock">t = 0.0 s</span>
+  <div class="seg" role="group" aria-label="Velocidad de simulación">
+    <button id="sp0" aria-pressed="false">Pausa</button>
+    <button id="sp025" aria-pressed="false">Cámara lenta ×¼</button>
+    <button id="sp1" aria-pressed="true">Tiempo real</button>
+  </div>
+  <button class="demobtn" id="demoBtn" aria-pressed="false">▶ Demo guiada</button>
+  <button class="mathbtn" id="mathBtn" aria-expanded="false" aria-controls="math"><span>∑</span>Ver la matemática</button>
+</header>
+
+<main id="main">
+  <section class="view" id="view" aria-label="Vista 3D del robot">
+    <div class="hud">
+      <span>Inclinación θ</span><span id="hTh">—</span>
+      <span>Posición x</span><span id="hX">—</span>
+      <span>Velocidad ẋ</span><span id="hV">—</span>
+      <span>Rumbo ψ</span><span id="hPsi">—</span>
+      <span>Par total τ</span><span id="hTau">—</span>
+    </div>
+    <div class="thtag" id="thtag">θ</div>
+    <div class="viewopts">
+      <button class="tog" id="tAids" aria-pressed="true">Ayudas visuales</button>
+      <button class="tog" id="tTrail" aria-pressed="true">Huella</button>
+      <button class="tog" id="tFollow" aria-pressed="true">Cámara sigue al robot</button>
+    </div>
+    <div class="wheels" aria-label="Par de los motores">
+      <div class="wh" id="wL"><div class="tube"><div class="mid"></div><div class="lvl"></div></div><span>τ izq</span></div>
+      <div class="wh" id="wR"><div class="tube"><div class="mid"></div><div class="lvl"></div></div><span>τ der</span></div>
+    </div>
+    <div class="caption" id="cap" hidden><b id="capN"></b><span id="capT"></span></div>
+    <div class="orient">Línea punteada = vertical · Esfera a cuadros = centro de masa · Arrastra para girar la cámara</div>
+  </section>
+
+  <aside class="panel">
+    <div class="card">
+      <div class="tabs" role="tablist">
+        <button role="tab" id="tab-mis" aria-selected="true" aria-controls="sec-mis">Mando</button>
+        <button role="tab" id="tab-rob" aria-selected="false" aria-controls="sec-rob">Robot</button>
+        <button role="tab" id="tab-lqr" aria-selected="false" aria-controls="sec-lqr">LQR</button>
+      </div>
+
+      <div class="sec" id="sec-mis" role="tabpanel">
+        <div class="missions">
+          <button class="mbtn" data-m="hold" aria-pressed="true">Quedarse quieto</button>
+          <button class="mbtn" data-m="step" aria-pressed="false">Avanzar 1,5 m</button>
+          <button class="mbtn" data-m="shuttle" aria-pressed="false">Ir y volver</button>
+          <button class="mbtn" data-m="eight" aria-pressed="false">Ocho</button>
+          <button class="mbtn" data-m="drive" aria-pressed="false">Conducción libre</button>
+        </div>
+        <div class="sl" data-eq="lqr"><div class="row"><label for="vRef">Velocidad deseada v<sub>ref</sub></label><output id="vvRef"></output><button class="fx" data-card="eq-lqr">f(x)</button></div><input type="range" id="vRef" min="-1" max="1" step="0.05" value="0" disabled></div>
+        <div class="sl" data-eq="yaw" data-hl="yaw"><div class="row"><label for="wRef">Giro deseado ψ̇<sub>ref</sub></label><output id="vwRef"></output><button class="fx" data-card="eq-yaw">f(x)</button></div><input type="range" id="wRef" min="-90" max="90" step="5" value="0" disabled></div>
+        <div class="btnrow">
+          <button class="act" id="kick">Empujón</button>
+          <button class="act warn" id="kick2">Empujón fuerte</button>
+        </div>
+        <button class="act" id="lift">Levantar el robot</button>
+        <p class="note">"Conducción libre" habilita los sliders de velocidad y giro.</p>
+      </div>
+
+      <div class="sec" id="sec-rob" role="tabpanel" hidden>
+        <div class="sl" data-eq="lin,poles" data-hl="geom"><div class="row"><label for="hLeg">Altura de las patas h</label><output id="vhLeg"></output><button class="fx" data-card="eq-lin">f(x)</button></div><input type="range" id="hLeg" min="0.12" max="0.38" step="0.01" value="0.25"></div>
+        <div class="sl" data-eq="lin,poles" data-hl="geom"><div class="row"><label for="mBody">Masa del cuerpo M</label><output id="vmBody"></output><button class="fx" data-card="eq-model">f(x)</button></div><input type="range" id="mBody" min="1.5" max="6" step="0.1" value="3"></div>
+        <div class="sl" data-eq="yaw" data-hl="tau"><div class="row"><label for="tMax">Par máximo por rueda</label><output id="vtMax"></output><button class="fx" data-card="eq-yaw">f(x)</button></div><input type="range" id="tMax" min="0.4" max="3" step="0.1" value="1.2"></div>
+        <label class="chk"><input type="checkbox" id="autoK" checked>Recalcular el LQR cuando cambia el robot</label>
+        <p class="note">Si desactivas el recálculo, el controlador sigue usando la K del robot original. Prueba a subir mucho las patas sin recalcular.</p>
+      </div>
+
+      <div class="sec" id="sec-lqr" role="tabpanel" hidden>
+        <h3>Pesos del costo J (escala logarítmica)</h3>
+        <div class="sl" data-eq="lqr,poles" data-hl="q"><div class="row"><label for="qx">q<sub>x</sub> · error de posición</label><output id="vqx"></output><button class="fx" data-card="eq-lqr">f(x)</button></div><input type="range" id="qx" min="-2" max="3" step="0.05" value="0.301"></div>
+        <div class="sl" data-eq="lqr,poles" data-hl="q"><div class="row"><label for="qv">q<sub>v</sub> · velocidad</label><output id="vqv"></output><button class="fx" data-card="eq-lqr">f(x)</button></div><input type="range" id="qv" min="-2" max="3" step="0.05" value="0"></div>
+        <div class="sl" data-eq="lqr,poles" data-hl="q"><div class="row"><label for="qth">q<sub>θ</sub> · inclinación</label><output id="vqth"></output><button class="fx" data-card="eq-lqr">f(x)</button></div><input type="range" id="qth" min="-1" max="4" step="0.05" value="1.602"></div>
+        <div class="sl" data-eq="lqr,poles" data-hl="q"><div class="row"><label for="qw">q<sub>ω</sub> · velocidad angular</label><output id="vqw"></output><button class="fx" data-card="eq-lqr">f(x)</button></div><input type="range" id="qw" min="-2" max="3" step="0.05" value="0"></div>
+        <div class="sl" data-eq="lqr,poles" data-hl="r"><div class="row"><label for="rr">R · costo del par</label><output id="vrr"></output><button class="fx" data-card="eq-lqr">f(x)</button></div><input type="range" id="rr" min="-2" max="3" step="0.05" value="0.301"></div>
+        <div class="kv"><span>K = <b id="kOut">—</b></span></div>
+        <button class="act" id="resetQ">Restaurar Q y R</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec">
+        <h3>Telemetría · últimos 10 s</h3>
+        <canvas class="trend" id="trend"></canvas>
+        <div class="tl"><span><i style="background:var(--c-th)"></i>θ [°]</span><span><i style="background:var(--c-x)"></i>x − x<sub>0</sub> [m]</span><span><i style="background:var(--ref)"></i>x<sub>ref</sub></span><span><i style="background:var(--c-tau)"></i>τ [N·m]</span></div>
+      </div>
+    </div>
+  </aside>
+
+  <aside class="math" id="math" aria-label="Matemática del modelo">
+    <div class="math-head"><h2>La matemática del equilibrio</h2><button class="x" id="mathClose" aria-label="Cerrar">✕</button></div>
+    <p class="lead">El simulador resuelve estas ecuaciones 500 veces por segundo. Debajo de cada una están los valores de este instante. Al mover un control se resaltan en rosa la ecuación y el término que cambia.</p>
+    <div class="casc">
+      <button class="b" data-card="eq-model">Modelo no lineal</button><span class="arr">→</span>
+      <button class="b" data-card="eq-lin">Linealización A, B</button><span class="arr">→</span>
+      <button class="b" data-card="eq-lqr">LQR → K</button><span class="arr">→</span>
+      <button class="b" data-card="eq-poles">Polos</button><span class="arr">·</span>
+      <button class="b" data-card="eq-nmp">Fase no mínima</button><span class="arr">·</span>
+      <button class="b" data-card="eq-yaw">Giro y motores</button>
+    </div>
+
+    <section class="eq" id="eq-model">
+      <h4>1 · Modelo no lineal <small>Lagrange</small></h4>
+      <div class="tex">\[ \begin{bmatrix} a & b\cos\theta \\ b\cos\theta & c \end{bmatrix} \begin{bmatrix}\ddot x\\ \ddot\theta\end{bmatrix} = \begin{bmatrix} \class{hl-tau}{\tau}/r - b_x\dot x + b\,\sin\theta\,\dot\theta^2 \\ \class{hl-geom}{M}\,g\,\class{hl-geom}{\ell}\,\sin\theta - \class{hl-tau}{\tau} \end{bmatrix} \]
+      \[ a = \class{hl-geom}{M} + 2m_w + \frac{2I_w}{r^2}, \qquad b = \class{hl-geom}{M\ell}, \qquad c = I_b + \class{hl-geom}{M\ell^2} \]</div>
+      <p>x es el avance de las ruedas y θ la inclinación del cuerpo respecto de la vertical (positiva hacia adelante). El motor aplica τ entre el cuerpo y las ruedas: empuja las ruedas hacia adelante (τ/r) y al cuerpo hacia atrás (−τ). La gravedad tira del centro de masa, que está a ℓ del eje.</p>
+      <div class="live" id="lv-model"></div>
+    </section>
+
+    <section class="eq" id="eq-lin">
+      <h4>2 · Linealización alrededor de θ = 0 <small>espacio de estados</small></h4>
+      <div class="tex">\[ \mathbf s = \begin{bmatrix} x & \dot x & \theta & \dot\theta \end{bmatrix}^{\mathsf T}, \qquad \dot{\mathbf s} = \class{hl-geom}{A}\,\mathbf s + \class{hl-geom}{B}\,\tau, \qquad \Delta = ac - b^2 \]
+      \[ A = \begin{bmatrix} 0 & 1 & 0 & 0 \\ 0 & -\frac{c\,b_x}{\Delta} & -\frac{b\,Mg\ell}{\Delta} & 0 \\ 0 & 0 & 0 & 1 \\ 0 & \frac{b\,b_x}{\Delta} & \frac{a\,Mg\ell}{\Delta} & 0 \end{bmatrix} \qquad B = \begin{bmatrix} 0 \\ \frac{c/r + b}{\Delta} \\ 0 \\ -\frac{a + b/r}{\Delta} \end{bmatrix} \]</div>
+      <p>Con sen θ ≈ θ y cos θ ≈ 1. El término a·Mgℓ/Δ es el que hace inestable al péndulo. Cambia con la altura de las patas y con la masa.</p>
+      <div class="mtxwrap" id="lv-lin"></div>
+    </section>
+
+    <section class="eq" id="eq-lqr">
+      <h4>3 · Regulador lineal cuadrático <small>LQR</small></h4>
+      <div class="tex">\[ J = \int_0^\infty \left( \mathbf s^{\mathsf T}\class{hl-q}{Q}\,\mathbf s + \class{hl-r}{R}\,\tau^2 \right) dt \]
+      \[ \class{hl-q}{Q} = \operatorname{diag}(q_x, q_v, q_\theta, q_\omega) \]
+      \[ A^{\mathsf T}P + PA - PB\,\class{hl-r}{R}^{-1}B^{\mathsf T}P + \class{hl-q}{Q} = 0 \]
+      \[ K = \class{hl-r}{R}^{-1}B^{\mathsf T}P, \qquad \tau = -K\,(\mathbf s - \mathbf s_{\text{ref}}) \]</div>
+      <p>Q dice cuánto "duele" cada error y R cuánto cuesta usar par. La ecuación de Riccati da la matriz P, y de ella sale la ganancia K óptima. Aquí se resuelve en el navegador (algoritmo de doblamiento) cada vez que cambias Q, R o el robot.</p>
+      <div class="live" id="lv-lqr"></div>
+    </section>
+
+    <section class="eq" id="eq-poles">
+      <h4>4 · Polos del sistema <small>plano complejo</small></h4>
+      <div class="tex">\[ \text{sin control: } \det\!\big(sI - A\big) = 0 \]
+      \[ \text{con LQR: } \det\!\big(sI - (A - BK)\big) = 0 \]</div>
+      <canvas class="poles" id="poles"></canvas>
+      <p>✕ = polos sin control: uno está a la derecha (s &gt; 0), y por eso el robot se cae solo. ● = polos con LQR: todos a la izquierda, sistema estable. Cuanto más a la izquierda, más rápida es la respuesta.</p>
+      <div class="live" id="lv-poles"></div>
+    </section>
+
+    <section class="eq" id="eq-nmp">
+      <h4>5 · Fase no mínima <small>retroceder para avanzar</small></h4>
+      <div class="tex">\[ \frac{X(s)}{T(s)} \propto \frac{(c/r + b)\,s^2 - M g \ell / r}{s^2\,(\cdots)} \]
+      \[ \Rightarrow\quad z = \pm\sqrt{\frac{M g \ell}{c + b\,r}} \]</div>
+      <p>La función de transferencia del par al avance tiene un cero en el semiplano derecho (+z). Por eso, para ir hacia adelante, el robot primero mueve las ruedas hacia atrás: así se inclina hacia adelante y después acelera. Prueba "Avanzar 1,5 m" en cámara lenta.</p>
+      <div class="live" id="lv-nmp"></div>
+    </section>
+
+    <section class="eq" id="eq-yaw">
+      <h4>6 · Giro y reparto entre ruedas <small>PD + saturación</small></h4>
+      <div class="tex">\[ J_\psi\,\ddot\psi = \frac{d}{2r}\,(\tau_R - \tau_L) - b_\psi\,\dot\psi \]
+      \[ \tau_\psi = K_{p\psi}\,(\psi_{\text{ref}} - \psi) + K_{d\psi}\,(\dot\psi_{\text{ref}} - \dot\psi) \]
+      \[ \tau_{R,L} = \operatorname{sat}_{\class{hl-tau}{\tau_{\max}}}\!\left(\frac{\tau}{2} \pm \frac{\tau_\psi}{2}\right) \]</div>
+      <p>La suma de los pares de las dos ruedas mantiene el equilibrio y la diferencia hace girar al robot. Si un motor llega a su par máximo, el LQR ya no recibe lo que pide, y con un empujón grande el robot se cae.</p>
+      <div class="live" id="lv-yaw"></div>
+    </section>
+    <p class="note">Parámetros: r = 0,085 m, m<sub>w</sub> = 0,35 kg por rueda, d = 0,34 m entre ruedas, ℓ = h + 0,05 m, I<sub>b</sub> = 0,25·Mℓ², b<sub>x</sub> = 0,08 N·s/m, g = 9,81 m/s². Integración con paso fijo de 2 ms.</p>
+  </aside>
+</main>
+
+<script>
+window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']]},svg:{fontCache:'global'},startup:{typeset:true}};
+</script>
+<!-- MathJax 3.2.2 y three.js r128: copias locales (funciona sin internet) con respaldo en CDN -->
+<script src="vendor/mathjax/tex-svg.js" async onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js';s.async=true;document.head.appendChild(s);"></script>
+<script src="vendor/three.min.js"></script>
+<script>window.THREE||document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>')</script>
+<script src="vendor/OrbitControls.js"></script>
+<script>(window.THREE&&THREE.OrbitControls)||document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"><\/script>')</script>
+<script>
+(function(){
+"use strict";
+/* ═════════════ Modelo y LQR ═════════════ */
+const g=9.81, DT=0.002, FALL=1.15, LYING=1.42;
+const R_W=0.085, MW=0.35, TRACK=0.34, BX=0.08, BPSI=0.05, KPPSI=1.2, KDPSI=0.25;
+const ROB={h:0.25, M:3.0, tmax:1.2};
+function makeParams(h,M,tmax){
+  const P={r:R_W,mw:MW,M,l:h+0.05,d:TRACK,bx:BX,tmax};
+  P.Ib=0.25*P.M*P.l*P.l; P.Iw=0.5*P.mw*P.r*P.r;
+  P.a=P.M+2*P.mw+2*P.Iw/(P.r*P.r); P.b=P.M*P.l; P.c=P.Ib+P.M*P.l*P.l;
+  P.Jpsi=P.M*(0.18*0.18+0.12*0.12)/12+2*P.mw*(P.d/2)*(P.d/2)+2*0.25*P.mw*P.r*P.r;
+  return P;
+}
+function accel(P,s,tau){
+  const [x,v,th,w]=s; const ct=Math.cos(th), st=Math.sin(th);
+  const m11=P.a, m12=P.b*ct, m22=P.c;
+  const f1=tau/P.r-P.bx*v+P.b*st*w*w, f2=P.M*g*P.l*st-tau, det=m11*m22-m12*m12;
+  return [(m22*f1-m12*f2)/det,(m11*f2-m12*f1)/det];
+}
+function linearize(P){
+  const D=P.a*P.c-P.b*P.b;
+  const A=[[0,1,0,0],[0,-P.c*P.bx/D,-P.b*P.M*g*P.l/D,0],[0,0,0,1],[0,P.b*P.bx/D,P.a*P.M*g*P.l/D,0]];
+  const B=[0,(P.c/P.r+P.b)/D,0,(-P.a-P.b/P.r)/D];
+  return {A,B,D};
+}
+function inv4(M){const n=M.length; const a=M.map((r,i)=>[...r,...[...Array(n)].map((_,j)=>i===j?1:0)]);
+  for(let c=0;c<n;c++){let p=c; for(let r=c+1;r<n;r++) if(Math.abs(a[r][c])>Math.abs(a[p][c])) p=r; [a[c],a[p]]=[a[p],a[c]];
+    const d=a[c][c]; for(let j=0;j<2*n;j++) a[c][j]/=d;
+    for(let r=0;r<n;r++) if(r!==c){const f=a[r][c]; if(f) for(let j=0;j<2*n;j++) a[r][j]-=f*a[c][j];}}
+  return a.map(r=>r.slice(n));}
+const mm=(X,Y)=>X.map((r,i)=>Y[0].map((_,j)=>{let s=0;for(let k=0;k<Y.length;k++)s+=X[i][k]*Y[k][j];return s;}));
+const tr=X=>X[0].map((_,j)=>X.map(r=>r[j]));
+const madd=(X,Y)=>X.map((r,i)=>r.map((v,j)=>v+Y[i][j]));
+function lqr(A,B,Q,R,dt=0.002){
+  const n=4, Id=[...Array(n)].map((_,i)=>[...Array(n)].map((_,j)=>i===j?1:0));
+  let Ad=madd(Id,A.map(r=>r.map(v=>v*dt))); Ad=madd(Ad,mm(A,A).map(r=>r.map(v=>v*dt*dt/2)));
+  const Bd=B.map((b,i)=>b*dt+A[i].reduce((s,v,k)=>s+v*B[k],0)*dt*dt/2), Rd=R*dt;
+  let Ak=Ad, Gk=Bd.map(bi=>Bd.map(bj=>bi*bj/Rd)), Hk=Id.map((r,i)=>r.map(v=>v*Q[i]*dt));
+  for(let it=0;it<60;it++){
+    const W=inv4(madd(Id,mm(Gk,Hk))), AW=mm(Ak,W);
+    const An=mm(AW,Ak), Gn=madd(Gk,mm(mm(AW,Gk),tr(Ak))), Hn=madd(Hk,mm(mm(tr(Ak),Hk),mm(W,Ak)));
+    let d=0; for(let i=0;i<n;i++)for(let j=0;j<n;j++) d=Math.max(d,Math.abs(Hn[i][j]-Hk[i][j])/(1+Math.abs(Hn[i][j])));
+    Ak=An; Gk=Gn; Hk=Hn; if(d<1e-12) break;
+  }
+  const P=Hk, PB=P.map(r=>r.reduce((s,v,k)=>s+v*Bd[k],0)), BPB=Bd.reduce((s,b,i)=>s+b*PB[i],0), PA=mm(P,Ad);
+  const K=[0,1,2,3].map(j=>Bd.reduce((s,b,k)=>s+b*PA[k][j],0)/(Rd+BPB));
+  return {K,P:P.map(r=>r.map(v=>v/dt))};
+}
+function poles(M){
+  const n=4; let prev=[...Array(n)].map((_,i)=>[...Array(n)].map((_,j)=>i===j?1:0)); const coeff=[1];
+  for(let k=1;k<=n;k++){ const AM=mm(M,prev); let t=0; for(let i=0;i<n;i++) t+=AM[i][i]; const ck=-t/k; coeff.push(ck); prev=AM.map((r,i)=>r.map((v,j)=>v+(i===j?ck:0))); }
+  let z=[[1.2,2.7],[-1.8,1.5],[0.9,-2.1],[-2.7,-1.2]].map(([a,b])=>({re:a,im:b}));
+  const mul=(a,b)=>({re:a.re*b.re-a.im*b.im,im:a.re*b.im+a.im*b.re}), sub=(a,b)=>({re:a.re-b.re,im:a.im-b.im}), div=(a,b)=>{const d=b.re*b.re+b.im*b.im;return {re:(a.re*b.re+a.im*b.im)/d,im:(a.im*b.re-a.re*b.im)/d};};
+  const pv=x=>{let r={re:1,im:0}; for(let k=1;k<=n;k++) r={re:r.re*x.re-r.im*x.im+coeff[k],im:r.re*x.im+r.im*x.re}; return r;};
+  for(let it=0;it<800;it++){ let mx=0; z=z.map((zi,i)=>{let den={re:1,im:0}; z.forEach((zj,j)=>{if(i!==j) den=mul(den,sub(zi,zj));}); const dz=div(pv(zi),den); mx=Math.max(mx,Math.hypot(dz.re,dz.im)); return sub(zi,dz);}); if(mx<1e-12) break; }
+  return z.map(c=>({re:c.re,im:Math.abs(c.im)<1e-7?0:c.im})).sort((p,q)=>p.re-q.re);
+}
+
+const Qdef={qx:0.301,qv:0,qth:1.602,qw:0,rr:0.301};
+const LQ={Q:[2,1,40,1],R:2};
+let PAR=makeParams(ROB.h,ROB.M,ROB.tmax), LIN=linearize(PAR), CTRL=lqr(LIN.A,LIN.B,LQ.Q,LQ.R), POL={ol:poles(LIN.A),cl:[]};
+CTRL.lin=LIN; CTRL.h=ROB.h;
+function recompute(geomChanged){
+  PAR=makeParams(ROB.h,ROB.M,ROB.tmax); LIN=linearize(PAR);
+  if(!geomChanged || $('autoK').checked){ const fresh=$('autoK').checked||!CTRL.lin; const L0=fresh?LIN:CTRL.lin, h0=fresh?ROB.h:CTRL.h; CTRL=lqr(L0.A,L0.B,LQ.Q,LQ.R); CTRL.lin=L0; CTRL.h=h0; }
+  const Acl=LIN.A.map((r,i)=>r.map((v,j)=>v-LIN.B[i]*CTRL.K[j]));
+  POL={ol:poles(LIN.A),cl:poles(Acl)}; drawPoles(); updateMath(true);
+}
+
+/* ═════════════ Estado ═════════════ */
+let S, W={X:0,Y:0,psi:0,dpsi:0,phiL:0,phiR:0}, fallen=false, simT=0;
+const REF={x:0,v:0,psi:0,dpsi:0};
+let mission='hold', mt=0, last={tau:0,tL:0,tR:0,tpsi:0,sat:false,Kterm:[0,0,0,0]};
+function resetRobot(keepPos){ S=[keepPos?S[0]:0,0,0,0]; if(!keepPos){W={X:0,Y:0,psi:0,dpsi:0,phiL:0,phiR:0};} W.dpsi=0; fallen=false; REF.x=S[0]; REF.v=0; REF.psi=W.psi; REF.dpsi=0; }
+resetRobot(false);
+let x0=0, shuttleDir=1;
+
+function missionRef(dt){
+  mt+=dt;
+  switch(mission){
+    case 'hold': REF.v=0; REF.dpsi=0; break;
+    case 'step': REF.v=0; REF.dpsi=0; break;
+    case 'shuttle': { const k=Math.floor(mt/5); REF.x=x0+(k%2===0?1.2:-0.2); REF.v=0; REF.dpsi=0; break; }
+    case 'eight': { REF.v=0.6; const per=2*Math.PI/0.65; REF.dpsi=(Math.floor(mt/per)%2===0?0.65:-0.65); REF.x+=REF.v*dt; break; }
+    case 'drive': REF.v=+$('vRef').value; REF.dpsi=+$('wRef').value*Math.PI/180; REF.x+=REF.v*dt; break;
+  }
+  REF.psi+=REF.dpsi*dt;
+}
+function step(dt){
+  simT+=dt; missionRef(dt);
+  const P=PAR; let tau=0, tpsi=0, tL=0, tR=0, sat=false;
+  if(!fallen){
+    const ex=Math.max(-1,Math.min(1,S[0]-REF.x));
+    const e=[ex,S[1]-REF.v,S[2],S[3]], K=CTRL.K;
+    const terms=K.map((k,i)=>-k*e[i]); tau=terms.reduce((a,b)=>a+b,0);
+    tpsi=KPPSI*wrap(REF.psi-W.psi)+KDPSI*(REF.dpsi-W.dpsi);
+    tR=tau/2+tpsi/2; tL=tau/2-tpsi/2;
+    if(Math.abs(tR)>P.tmax||Math.abs(tL)>P.tmax) sat=true;
+    tR=clamp(tR,-P.tmax,P.tmax); tL=clamp(tL,-P.tmax,P.tmax); tau=tR+tL;
+    last.Kterm=terms;
+  }
+  // Dinámica de avance e inclinación
+  const [xa,tha]=accel(P,S,tau);
+  S[1]+=xa*dt; S[0]+=S[1]*dt; S[3]+=tha*dt; S[2]+=S[3]*dt;
+  if(Math.abs(S[2])>FALL) fallen=true;
+  if(fallen){ if(Math.abs(S[2])>=LYING){ S[2]=Math.sign(S[2])*LYING; S[3]=0; S[1]*=Math.exp(-6*dt); } }
+  // Guiñada
+  const psidd=((P.d/(2*P.r))*(tR-tL)-BPSI*W.dpsi)/P.Jpsi;
+  W.dpsi+=psidd*dt; if(fallen) W.dpsi*=Math.exp(-6*dt); W.psi+=W.dpsi*dt;
+  W.X+=S[1]*Math.cos(W.psi)*dt; W.Y+=S[1]*Math.sin(W.psi)*dt;
+  W.phiR+=(S[1]+W.dpsi*P.d/2)/P.r*dt; W.phiL+=(S[1]-W.dpsi*P.d/2)/P.r*dt;
+  last={tau,tL,tR,tpsi,sat,Kterm:last.Kterm,xa,tha,psidd};
+}
+const wrap=a=>Math.atan2(Math.sin(a),Math.cos(a));
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+
+/* ═════════════ Escena 3D ═════════════ */
+const $=id=>document.getElementById(id);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const view=$('view');
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+renderer.outputEncoding=THREE.sRGBEncoding; renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+view.prepend(renderer.domElement);
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(40,1,0.05,200);
+camera.position.set(0.9,0.75,1.55);
+const controls=new THREE.OrbitControls(camera,renderer.domElement);
+controls.enableDamping=true; controls.minDistance=0.5; controls.maxDistance=20; controls.maxPolarAngle=Math.PI*0.495;
+controls.target.set(0,0.3,0); controls.update();
+scene.add(new THREE.HemisphereLight(0xffffff,0x5d676e,0.8));
+const sun=new THREE.DirectionalLight(0xffffff,0.95); sun.castShadow=true; sun.shadow.mapSize.set(2048,2048);
+Object.assign(sun.shadow.camera,{left:-3,right:3,top:3,bottom:-3,near:0.5,far:30}); sun.shadow.bias=-0.0004; scene.add(sun); scene.add(sun.target);
+const V=(x,y,z)=>new THREE.Vector3(x,z,-y);
+
+const groundMat=new THREE.MeshStandardMaterial({color:0xc9d1d6,roughness:0.95});
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(80,80),groundMat); ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; scene.add(ground);
+let grid=null; function buildGrid(){ if(grid) scene.remove(grid); grid=new THREE.GridHelper(40,80,new THREE.Color(css('--grid1')),new THREE.Color(css('--grid2'))); grid.position.y=0.001; scene.add(grid); }
+// Marcas de distancia cada metro sobre el eje x
+for(let m=-6;m<=6;m++){ const mk=new THREE.Mesh(new THREE.BoxGeometry(0.02,0.002,0.18),new THREE.MeshBasicMaterial({color:m===0?0xd97706:0x7a8790})); mk.position.set(m,0.002,0); scene.add(mk); }
+
+// Robot
+const robot=new THREE.Group(); scene.add(robot);          // posición y rumbo en el suelo
+const pivot=new THREE.Group(); pivot.position.y=R_W; robot.add(pivot); // gira con θ alrededor del eje de las ruedas
+const white=new THREE.MeshStandardMaterial({color:0xf1f3f5,roughness:0.45,metalness:0.05});
+const blue=new THREE.MeshStandardMaterial({color:0x1864ab,roughness:0.4,metalness:0.1});
+const dark=new THREE.MeshStandardMaterial({color:0x1f262c,roughness:0.6,metalness:0.2});
+const metal=new THREE.MeshStandardMaterial({color:0xaab3ba,roughness:0.3,metalness:0.85});
+const rubber=new THREE.MeshStandardMaterial({color:0x202326,roughness:0.9});
+function sh(m){m.castShadow=true; m.receiveShadow=true; return m;}
+// Ruedas
+const wheels=[];
+for(const side of [1,-1]){ // +1 = derecha (three +Z), −1 = izquierda
+  const wg=new THREE.Group(); wg.position.set(0,R_W,side*TRACK/2); robot.add(wg);
+  const spin=new THREE.Group(); wg.add(spin);
+  const tire=sh(new THREE.Mesh(new THREE.TorusGeometry(R_W-0.017,0.017,14,40),rubber)); spin.add(tire);
+  const rim=sh(new THREE.Mesh(new THREE.CylinderGeometry(R_W-0.03,R_W-0.03,0.026,32),blue)); rim.rotation.x=Math.PI/2; spin.add(rim);
+  const hub=sh(new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.018,0.034,16),metal)); hub.rotation.x=Math.PI/2; spin.add(hub);
+  for(let k=0;k<5;k++){ const sp=sh(new THREE.Mesh(new THREE.BoxGeometry(0.012,R_W-0.04,0.03),white)); const a=k/5*Math.PI*2; sp.position.set(Math.sin(a)*(R_W-0.04)/2,Math.cos(a)*(R_W-0.04)/2,0); sp.rotation.z=-a; spin.add(sp); }
+  const tick=sh(new THREE.Mesh(new THREE.BoxGeometry(0.01,0.02,0.031),new THREE.MeshStandardMaterial({color:0xd97706}))); tick.position.y=R_W-0.045; spin.add(tick);
+  const motor=sh(new THREE.Mesh(new THREE.CylinderGeometry(0.032,0.032,0.05,20),dark)); motor.rotation.x=Math.PI/2; motor.position.z=-side*0.04; wg.add(motor);
+  wheels.push({spin,side});
+}
+// Patas (muslo + tibia) y cuerpo, dentro del pivote
+const legs=[];
+for(const side of [1,-1]){
+  const thigh=sh(new THREE.Mesh(new THREE.BoxGeometry(0.03,1,0.022),white)), shin=sh(new THREE.Mesh(new THREE.BoxGeometry(0.026,1,0.02),blue));
+  const knee=sh(new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,0.03,16),dark)); knee.rotation.x=Math.PI/2;
+  const hipJ=sh(new THREE.Mesh(new THREE.CylinderGeometry(0.026,0.026,0.04,16),dark)); hipJ.rotation.x=Math.PI/2;
+  [thigh,shin,knee,hipJ].forEach(m=>{m.position.z=side*(TRACK/2-0.07); pivot.add(m);});
+  legs.push({thigh,shin,knee,hipJ,side});
+}
+const axle=sh(new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.012,TRACK-0.12,12),metal)); axle.rotation.x=Math.PI/2; pivot.add(axle);
+const torso=new THREE.Group(); pivot.add(torso);
+const chassis=sh(new THREE.Mesh(new THREE.BoxGeometry(0.12,0.13,TRACK-0.1),white)); chassis.position.y=0.04; torso.add(chassis);
+const band=sh(new THREE.Mesh(new THREE.BoxGeometry(0.122,0.03,TRACK-0.098),blue)); band.position.y=0.0; torso.add(band);
+const battery=sh(new THREE.Mesh(new THREE.BoxGeometry(0.04,0.09,0.14),dark)); battery.position.set(-0.075,0.04,0); torso.add(battery);
+const head=sh(new THREE.Mesh(new THREE.SphereGeometry(1,32,20),white)); head.scale.set(0.085,0.075,0.12); head.position.y=0.15; torso.add(head);
+const visor=sh(new THREE.Mesh(new THREE.SphereGeometry(1,32,20,-Math.PI/2.6,Math.PI/1.3,Math.PI/3.2,Math.PI/2.8),new THREE.MeshStandardMaterial({color:0x0b1620,roughness:0.15,metalness:0.4}))); visor.scale.set(0.087,0.077,0.122); visor.position.y=0.15; visor.rotation.y=Math.PI/2; torso.add(visor);
+const eyeMat=new THREE.MeshStandardMaterial({color:0x74c0fc,emissive:0x4dabf7,emissiveIntensity:1.6});
+const eyes=[-1,1].map(s=>{const e=new THREE.Mesh(new THREE.SphereGeometry(0.012,12,10),eyeMat); e.scale.set(0.6,1.5,1); e.position.set(0.083,0.155,s*0.035); torso.add(e); return e;});
+const antenna=sh(new THREE.Mesh(new THREE.CylinderGeometry(0.003,0.003,0.08,6),metal)); antenna.position.set(-0.03,0.25,0.04); torso.add(antenna);
+const antBall=new THREE.Mesh(new THREE.SphereGeometry(0.012,12,10),new THREE.MeshStandardMaterial({color:0xd97706,emissive:0xd97706,emissiveIntensity:0.6})); antBall.position.set(-0.03,0.29,0.04); torso.add(antBall);
+// Centro de masa (esfera a cuadros)
+const comTex=(()=>{const c=document.createElement('canvas'); c.width=c.height=64; const x=c.getContext('2d'); for(let i=0;i<2;i++)for(let j=0;j<2;j++){x.fillStyle=(i+j)%2?'#111':'#ffd43b'; x.fillRect(i*32,j*32,32,32);} return new THREE.CanvasTexture(c);})();
+const com=new THREE.Mesh(new THREE.SphereGeometry(0.022,20,14),new THREE.MeshStandardMaterial({map:comTex,roughness:0.5})); pivot.add(com);
+// Ayudas visuales: vertical, arco θ, flecha de peso, arcos de par
+const aids=new THREE.Group(); robot.add(aids);
+const plumb=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,R_W,0),new THREE.Vector3(0,R_W+0.6,0)]),new THREE.LineDashedMaterial({color:0x58646e,dashSize:0.02,gapSize:0.015})); plumb.computeLineDistances(); aids.add(plumb);
+const arcMat=new THREE.MeshBasicMaterial({color:0xc2255c,transparent:true,opacity:0.35,side:THREE.DoubleSide,depthWrite:false});
+let arcMesh=new THREE.Mesh(new THREE.BufferGeometry(),arcMat); aids.add(arcMesh);
+const arcLine=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xc2255c})); aids.add(arcLine);
+const gArrow=new THREE.ArrowHelper(new THREE.Vector3(0,-1,0),new THREE.Vector3(),0.2,0x7048e8,0.04,0.025); scene.add(gArrow);
+const torqueArcs=wheels.map(w=>{ const m=new THREE.Mesh(new THREE.TorusGeometry(R_W+0.03,0.006,6,40,Math.PI*1.3),new THREE.MeshBasicMaterial({color:0xae3ec9,transparent:true,opacity:0.8}));
+  const cone=new THREE.Mesh(new THREE.ConeGeometry(0.016,0.035,12),m.material); m.add(cone);
+  const a=Math.PI*1.3; cone.position.set((R_W+0.03)*Math.cos(a),(R_W+0.03)*Math.sin(a),0); cone.rotation.z=a; // punta en el extremo del arco
+  const gW=new THREE.Group(); gW.position.set(0,R_W,w.side*(TRACK/2+0.035)); gW.add(m); robot.add(gW); return {g:gW,m};});
+// Referencia en el suelo (bandera)
+const refG=new THREE.Group(); scene.add(refG);
+const refMat=new THREE.MeshBasicMaterial({color:0xd97706});
+const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.005,0.005,0.35,8),refMat); pole.position.y=0.175; refG.add(pole);
+const flag=new THREE.Mesh(new THREE.PlaneGeometry(0.1,0.06),new THREE.MeshBasicMaterial({color:0xd97706,side:THREE.DoubleSide})); flag.position.set(0.05,0.32,0); refG.add(flag);
+const refRing=new THREE.Mesh(new THREE.RingGeometry(0.06,0.075,32),new THREE.MeshBasicMaterial({color:0xd97706,side:THREE.DoubleSide})); refRing.rotation.x=-Math.PI/2; refRing.position.y=0.003; refG.add(refRing);
+// Huella
+const NTR=900; const trPos=new Float32Array(NTR*3); let trN=0; const trGeo=new THREE.BufferGeometry(); trGeo.setAttribute('position',new THREE.BufferAttribute(trPos,3)); trGeo.setDrawRange(0,0);
+const trail=new THREE.Line(trGeo,new THREE.LineBasicMaterial({color:0x1864ab,transparent:true,opacity:0.6})); scene.add(trail); let trAcc=0;
+
+function legGeom(h){
+  // cadera a (0,h) en el pivote; rodilla hacia atrás; segmentos de 0,2 m
+  const L=0.2, half=Math.min(h/2,L-0.005), kx=-Math.sqrt(L*L-half*half);
+  legs.forEach(lg=>{
+    const set=(m,x1,y1,x2,y2)=>{ m.position.x=(x1+x2)/2; m.position.y=(y1+y2)/2; m.scale.y=Math.hypot(x2-x1,y2-y1); m.rotation.z=Math.atan2(x1-x2,y2-y1); };
+    set(lg.thigh,kx,half,0,h); set(lg.shin,0,0,kx,half);
+    lg.knee.position.set(kx,half,lg.knee.position.z); lg.hipJ.position.set(0,h,lg.hipJ.position.z);
+  });
+  torso.position.y=h; com.position.y=h+0.05;
+}
+legGeom(ROB.h);
+
+/* ═════════════ Tema y tamaño ═════════════ */
+function applyTheme(){ const sky=new THREE.Color(css('--sky')); scene.background=sky; scene.fog=new THREE.Fog(sky,10,40); groundMat.color.set(css('--ground')); buildGrid(); drawTrend(); drawPoles(); }
+const mq=window.matchMedia('(prefers-color-scheme: dark)'); mq.addEventListener&&mq.addEventListener('change',applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+let VW=1,VH=1;
+function resize(){const r=view.getBoundingClientRect(); VW=Math.max(1,r.width); VH=Math.max(1,r.height); renderer.setSize(VW,VH); camera.aspect=VW/VH; camera.updateProjectionMatrix(); sizeCanvas(trend); sizeCanvas(polesC); drawTrend(); drawPoles();}
+new ResizeObserver(resize).observe(view);
+
+/* ═════════════ Interfaz ═════════════ */
+let speed=1, follow=true, showAids=true;
+const spB={0:$('sp0'),0.25:$('sp025'),1:$('sp1')};
+function setSpeed(k){ speed=k; Object.entries(spB).forEach(([kk,x])=>x.setAttribute('aria-pressed',String(+kk===k))); }
+Object.entries(spB).forEach(([k,b])=>b.addEventListener('click',()=>setSpeed(+k)));
+function tog(id,fn){const b=$(id); b.addEventListener('click',()=>{const on=b.getAttribute('aria-pressed')!=='true'; b.setAttribute('aria-pressed',String(on)); fn(on);});}
+tog('tAids',on=>{showAids=on; aids.visible=on; gArrow.visible=on; torqueArcs.forEach(t=>t.g.visible=on); com.visible=on; $('thtag').hidden=!on;});
+tog('tTrail',on=>{trail.visible=on;});
+tog('tFollow',on=>{follow=on;});
+const tabs=['mis','rob','lqr'];
+tabs.forEach(t=>$('tab-'+t).addEventListener('click',()=>{tabs.forEach(u=>{$('tab-'+u).setAttribute('aria-selected',String(u===t)); $('sec-'+u).hidden=u!==t;});}));
+
+const main=$('main'), mathBtn=$('mathBtn');
+function setMath(open){ main.classList.toggle('math-open',open); mathBtn.setAttribute('aria-expanded',String(open)); setTimeout(resize,30); if(open) updateMath(true); }
+mathBtn.addEventListener('click',()=>setMath(!main.classList.contains('math-open')));
+$('mathClose').addEventListener('click',()=>setMath(false));
+const CAPTURE=new URLSearchParams(location.search).get('capture')==='1';
+let uiClock=0; const timers=[]; const later=(sec,fn,key)=>{ if(key){const i=timers.findIndex(t=>t.key===key); if(i>=0) timers.splice(i,1);} timers.push({due:uiClock+sec,fn,key}); };
+function runTimers(){ for(let i=timers.length-1;i>=0;i--) if(timers[i].due<=uiClock){const t=timers.splice(i,1)[0]; t.fn();} }
+function flashCard(c){ c.classList.add('flash'); later(2.4,()=>c.classList.remove('flash'),'f-'+c.id);
+  document.querySelectorAll('.casc .b').forEach(b=>{ if(b.dataset.card===c.id){ b.classList.add('flash'); later(2.4,()=>b.classList.remove('flash'),'c-'+c.id);} }); }
+function highlight(eqs,hl){
+  (eqs||'').split(',').filter(Boolean).forEach(k=>{const c=$('eq-'+k); if(c) flashCard(c);});
+  if(hl){ ['geom','q','r','tau','yaw'].forEach(h=>main.classList.remove('hl-'+h)); main.classList.add('hl-'+hl); later(2.8,()=>main.classList.remove('hl-'+hl),'hl'); }
+}
+function showCard(id){ if(!main.classList.contains('math-open')) setMath(true); const c=$(id); c.scrollIntoView({behavior:CAPTURE?'auto':'smooth',block:'start'}); flashCard(c); }
+document.querySelectorAll('[data-card]').forEach(b=>b.addEventListener('click',()=>{ if(!main.classList.contains('math-open')) setMath(true); setTimeout(()=>showCard(b.dataset.card),60); }));
+document.querySelectorAll('.sl input').forEach(inp=>inp.addEventListener('input',()=>{const sl=inp.closest('.sl'); highlight(sl.dataset.eq,sl.dataset.hl);}));
+
+function bind(id,fmt,fn){const el=$(id); const f=()=>{const v=+el.value; $('v'+id).textContent=fmt(v); fn(v);}; el.addEventListener('input',f); f(); return el;}
+bind('vRef',v=>v.toFixed(2)+' m/s',()=>{});
+bind('wRef',v=>v.toFixed(0)+' °/s',()=>{});
+let geomPending=false;
+bind('hLeg',v=>v.toFixed(2)+' m · ℓ = '+(v+0.05).toFixed(2)+' m',v=>{ROB.h=v; legGeom(v); geomPending=true;});
+bind('mBody',v=>v.toFixed(1)+' kg',v=>{ROB.M=v; geomPending=true;});
+bind('tMax',v=>v.toFixed(1)+' N·m',v=>{ROB.tmax=v; PAR.tmax=v;});
+$('autoK').addEventListener('change',()=>{ if($('autoK').checked) recompute(true); });
+const qfmt=v=>{const x=Math.pow(10,v); return x>=100?x.toFixed(0):x>=10?x.toFixed(1):x>=1?x.toFixed(2):x.toFixed(3);};
+function readQ(){ LQ.Q=[Math.pow(10,+$('qx').value),Math.pow(10,+$('qv').value),Math.pow(10,+$('qth').value),Math.pow(10,+$('qw').value)]; LQ.R=Math.pow(10,+$('rr').value); }
+let qPending=false;
+['qx','qv','qth','qw','rr'].forEach(k=>bind(k,qfmt,()=>{readQ(); qPending=true;}));
+$('resetQ').addEventListener('click',()=>{Object.entries(Qdef).forEach(([k,v])=>{$(k).value=v; $(k).dispatchEvent(new Event('input'));});});
+$('kick').addEventListener('click',()=>{ if(!fallen){ S[3]+=4*(Math.random()<0.5?-1:1); highlight('lqr');} });
+$('kick2').addEventListener('click',()=>{ if(!fallen){ S[3]+=8*(Math.random()<0.5?-1:1); highlight('yaw','tau');} });
+$('lift').addEventListener('click',()=>{ resetRobot(true); REF.x=S[0]; x0=S[0]; });
+document.querySelectorAll('.mbtn').forEach(b=>b.addEventListener('click',()=>setMission(b.dataset.m)));
+function setMission(m){
+  mission=m; mt=0; x0=S[0]; REF.x=S[0]; REF.psi=W.psi;
+  if(m==='step') REF.x=S[0]+1.5;
+  document.querySelectorAll('.mbtn').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.m===m)));
+  $('vRef').disabled=$('wRef').disabled=m!=='drive';
+  highlight(m==='step'?'nmp,lqr':m==='eight'?'yaw':'lqr', m==='eight'?'yaw':null);
+}
+
+/* ═════════════ Gráficos ═════════════ */
+const trend=$('trend'), tctx=trend.getContext('2d'), polesC=$('poles'), pctx=polesC.getContext('2d');
+function sizeCanvas(c){const r=c.getBoundingClientRect(); if(!r.width) return; const d=Math.min(window.devicePixelRatio||1,2); c.width=Math.round(r.width*d); c.height=Math.round(r.height*d); c.getContext('2d').setTransform(d,0,0,d,0,0);}
+const hist=[]; let histAcc=0;
+function drawTrend(){
+  const w=trend.clientWidth,h=trend.clientHeight; if(!w) return; tctx.clearRect(0,0,w,h);
+  const Lm=30,Rm=6,gap=12,h1=(h-gap-14)/2, t1=simT, t0=t1-10, xs=t=>Lm+(t-t0)/10*(w-Lm-Rm);
+  tctx.font='10px "JetBrains Mono", monospace';
+  const plot=(top,lo,hi,ticks,series,unit)=>{ const ys=v=>top+(1-(v-lo)/(hi-lo))*h1;
+    tctx.strokeStyle=css('--line'); tctx.fillStyle=css('--muted'); tctx.lineWidth=1; tctx.textAlign='right';
+    ticks.forEach(v=>{const y=ys(v); tctx.beginPath(); tctx.moveTo(Lm,y); tctx.lineTo(w-Rm,y); tctx.stroke(); tctx.fillText(v,Lm-4,y+3);});
+    series.forEach(([k,col,dash])=>{tctx.strokeStyle=css(col); tctx.setLineDash(dash?[4,3]:[]); tctx.lineWidth=dash?1.3:1.8; tctx.beginPath(); let s=false; for(const p of hist){ if(p.t<t0) continue; const y=ys(clamp(p[k],lo,hi)); s?tctx.lineTo(xs(p.t),y):tctx.moveTo(xs(p.t),y); s=true;} tctx.stroke();});
+    tctx.setLineDash([]); tctx.textAlign='left'; tctx.fillText(unit,2,top+8); };
+  plot(2,-30,30,[-30,0,30],[['th','--c-th']],'°');
+  const xl=hist.length?Math.max(1,Math.ceil(Math.max(...hist.map(p=>Math.max(Math.abs(p.x),Math.abs(p.xr),Math.abs(p.tau))))*1.1)):2;
+  plot(2+h1+gap,-xl,xl,[-xl,0,xl],[['xr','--ref',true],['x','--c-x'],['tau','--c-tau']],'');
+  tctx.fillStyle=css('--muted'); tctx.textAlign='center'; for(let s=Math.ceil(t0);s<=t1;s+=2) tctx.fillText(s.toFixed(0)+' s',xs(s),h-2);
+}
+function drawPoles(){
+  const w=polesC.clientWidth,h=polesC.clientHeight; if(!w) return; pctx.clearRect(0,0,w,h);
+  const all=[...POL.ol,...POL.cl]; const reMin=Math.min(-1,...all.map(p=>p.re)), reMax=Math.max(1,...all.map(p=>p.re)), imMax=Math.max(1,...all.map(p=>Math.abs(p.im)));
+  // escala con compresión para polos muy rápidos
+  const sc=v=>Math.sign(v)*Math.log10(1+Math.abs(v));
+  const xr0=sc(reMin)-0.15, xr1=sc(reMax)+0.15, yr=sc(imMax)+0.2;
+  const X=v=>16+(sc(v)-xr0)/(xr1-xr0)*(w-32), Y=v=>h/2-sc(v)/yr*(h/2-16);
+  pctx.fillStyle=css('--hi-bg'); pctx.fillRect(X(0),8,w-16-X(0),h-16);
+  pctx.strokeStyle=css('--muted'); pctx.lineWidth=1; pctx.beginPath(); pctx.moveTo(8,Y(0)); pctx.lineTo(w-8,Y(0)); pctx.moveTo(X(0),8); pctx.lineTo(X(0),h-8); pctx.stroke();
+  pctx.font='10px "JetBrains Mono", monospace'; pctx.fillStyle=css('--muted'); pctx.textAlign='left';
+  pctx.fillText('Im',X(0)+4,16); pctx.textAlign='right'; pctx.fillText('Re',w-10,Y(0)-4);
+  pctx.textAlign='center'; [-100,-10,-1,1,10].forEach(v=>{ if(v>=reMin-1&&v<=reMax+1){ const x=X(v); pctx.fillText(v,x,Y(0)+13); pctx.beginPath(); pctx.moveTo(x,Y(0)-3); pctx.lineTo(x,Y(0)+3); pctx.stroke(); }});
+  pctx.textAlign='right'; pctx.fillStyle=css('--hi'); pctx.fillText('inestable →',w-20,24);
+  pctx.strokeStyle=css('--crit'); pctx.lineWidth=2; POL.ol.forEach(p=>{const x=X(p.re),y=Y(p.im); pctx.beginPath(); pctx.moveTo(x-5,y-5); pctx.lineTo(x+5,y+5); pctx.moveTo(x+5,y-5); pctx.lineTo(x-5,y+5); pctx.stroke();});
+  pctx.fillStyle=css('--accent'); POL.cl.forEach(p=>{pctx.beginPath(); pctx.arc(X(p.re),Y(p.im),5,0,Math.PI*2); pctx.fill();});
+  pctx.fillStyle=css('--muted'); pctx.textAlign='left'; pctx.fillText('escala log · ✕ sin control · ● con LQR',10,h-12+0);
+}
+
+/* ═════════════ Valores en vivo ═════════════ */
+const f=(v,n=2)=>(Math.abs(v)<5e-4?0:v).toFixed(n), deg=r=>r*180/Math.PI;
+const cells=pairs=>pairs.map(([k,v])=>'<span>'+k+' = <b>'+v+'</b></span>').join('');
+const mtx=(rows,n=2)=>'<table class="mtx">'+rows.map(r=>'<tr>'+r.map(x=>'<td>'+f(x,n)+'</td>').join('')+'</tr>').join('')+'</table>';
+const cplx=p=>f(p.re,2)+(p.im?(p.im>0?' + ':' − ')+f(Math.abs(p.im),2)+'i':'');
+function updateMath(force){
+  if(!main.classList.contains('math-open')&&!force) return;
+  const P=PAR;
+  $('lv-model').innerHTML=cells([['ℓ',P.l.toFixed(2)+' m'],['M',P.M.toFixed(2)+' kg'],['a',P.a.toFixed(3)+' kg'],['b',P.b.toFixed(3)+' kg·m'],['c',P.c.toFixed(4)+' kg·m²'],['τ',f(last.tau,3)+' N·m'],['ẍ',f(last.xa||0)+' m/s²'],['θ̈',f(last.tha||0)+' rad/s²'],['θ',f(deg(S[2]),1)+'°'],['θ̇',f(S[3])+' rad/s']]);
+  $('lv-lin').innerHTML='<span>A = '+mtx(LIN.A,2)+'</span><span>B = '+mtx(LIN.B.map(b=>[b]),2)+'</span><span>Δ = '+LIN.D.toFixed(4)+'</span>';
+  const K=CTRL.K;
+  $('lv-lqr').innerHTML=cells([['Q','diag('+LQ.Q.map(q=>q<10?q.toFixed(2):q.toFixed(0)).join(', ')+')'],['R',LQ.R<10?LQ.R.toFixed(2):LQ.R.toFixed(0)],['K','['+K.map(k=>f(k,2)).join(', ')+']'],['−K·e (x, ẋ, θ, θ̇)','['+last.Kterm.map(v=>f(v,2)).join(', ')+'] N·m'],['τ = Σ',f(last.tau,3)+' N·m'],['K calculada para','h = '+CTRL.h.toFixed(2)+' m'+(Math.abs(CTRL.h-ROB.h)>1e-6?' (¡no es la actual!)':'')]]);
+  $('lv-poles').innerHTML=cells([['sin control',POL.ol.map(cplx).join(' · ')],['con LQR',POL.cl.map(cplx).join(' · ')]]);
+  const z=Math.sqrt(P.M*g*P.l/(P.c+P.b*P.r));
+  $('lv-nmp').innerHTML=cells([['cero z',f(z,2)+' s⁻¹'],['x − x_ref',f(S[0]-REF.x,3)+' m'],['ẋ',f(S[1])+' m/s']]);
+  $('lv-yaw').innerHTML=cells([['τ_R',f(last.tR,3)+' N·m'],['τ_L',f(last.tL,3)+' N·m'],['τ_ψ',f(last.tpsi,3)+' N·m'],['τ_max',P.tmax.toFixed(1)+' N·m'+(last.sat?' · saturado':'')],['ψ',f(deg(W.psi),1)+'°'],['ψ̇',f(deg(W.dpsi),1)+' °/s'],['J_ψ',P.Jpsi.toFixed(4)+' kg·m²']]);
+}
+
+/* ═════════════ Bucle ═════════════ */
+const clockT=new THREE.Clock(); let acc=0, uiAcc=0, mathAcc=0, recAcc=0;
+let lastPos=new THREE.Vector3(0,0.3,0); const tmp=new THREE.Vector3();
+function frame(dtFixed){
+  const dtw=dtFixed!==undefined?dtFixed:Math.min(clockT.getDelta(),0.1);
+  uiClock+=dtw; runTimers();
+  // Recalcular LQR cuando cambian Q/R o el robot (como mucho 8 veces por segundo)
+  recAcc+=dtw; if((qPending||geomPending)&&recAcc>0.12){ recAcc=0; const gc=geomPending; qPending=geomPending=false; recompute(gc); $('kOut').textContent='['+CTRL.K.map(k=>f(k,2)).join(', ')+']'; }
+  acc+=dtw*speed; let n=0; while(acc>=DT&&n<150){ step(DT); acc-=DT; n++; } if(n>=150) acc=0;
+  const simDt=n*DT;
+  // Pose
+  robot.position.copy(V(W.X,W.Y,0)); robot.rotation.y=W.psi;
+  pivot.rotation.z=-S[2];
+  wheels.forEach(w=>{ w.spin.rotation.z=-(w.side>0?W.phiR:W.phiL); });
+  eyeMat.emissive.setHex(fallen?0xfa5252:Math.abs(S[2])>0.35?0xfcc419:0x4dabf7); eyeMat.color.copy(eyeMat.emissive);
+  // Ayudas
+  if(showAids){
+    const th=S[2], L=0.42, N=24; const pts=[new THREE.Vector3(0,R_W,0)], lp=[];
+    for(let i=0;i<=N;i++){ const a=th*i/N; const p=new THREE.Vector3(Math.sin(a)*L*0.8,R_W+Math.cos(a)*L*0.8,0); pts.push(p); lp.push(p); }
+    const idx=[]; for(let i=1;i<=N;i++) idx.push(0,i,i+1);
+    const geo=new THREE.BufferGeometry().setFromPoints(pts); geo.setIndex(idx); arcMesh.geometry.dispose(); arcMesh.geometry=geo;
+    arcLine.geometry.dispose(); arcLine.geometry=new THREE.BufferGeometry().setFromPoints(lp);
+    const cw=com.getWorldPosition(tmp.set(0,0,0)).clone();
+    gArrow.position.copy(cw); gArrow.setLength(Math.max(0.06,PAR.M*g*0.008),0.04,0.025);
+    [last.tR,last.tL].forEach((t,i)=>{ const ta=torqueArcs[i===0?0:1]; const mag=Math.abs(t)/PAR.tmax; ta.m.visible=mag>0.03&&!fallen; ta.m.material.opacity=0.25+0.7*Math.min(1,mag); ta.m.scale.set(1,t>=0?-1:1,1); ta.m.rotation.z=Math.PI*0.35; ta.m.material.color.setHex(mag>0.98?0xf08c00:0xae3ec9); });
+    // etiqueta θ
+    const lab=new THREE.Vector3(Math.sin(th/2)*L*0.95,R_W+Math.cos(th/2)*L*0.95,0); robot.localToWorld(lab); lab.project(camera);
+    const tg=$('thtag'); tg.style.left=((lab.x+1)/2*VW).toFixed(1)+'px'; tg.style.top=((1-lab.y)/2*VH).toFixed(1)+'px'; tg.textContent='θ = '+f(deg(th),1)+'°';
+  }
+  // Referencia
+  const rx=W.X+(REF.x-S[0])*Math.cos(W.psi), ry=W.Y+(REF.x-S[0])*Math.sin(W.psi);
+  refG.position.copy(V(rx,ry,0)); refG.visible=(mission==='hold'||mission==='step'||mission==='shuttle');
+  // Huella
+  trAcc+=simDt; if(trAcc>0.03){trAcc=0; if(trN<NTR) trN++; trPos.copyWithin(3,0,(NTR-1)*3); trPos[0]=robot.position.x; trPos[1]=0.004; trPos[2]=robot.position.z; trGeo.attributes.position.needsUpdate=true; trGeo.setDrawRange(0,trN);}
+  sun.position.copy(robot.position).add(tmp.set(3,6,2)); sun.target.position.copy(robot.position);
+  const cp=robot.position.clone().add(new THREE.Vector3(0,0.3,0));
+  if(follow){ const d=cp.clone().sub(lastPos); camera.position.add(d); controls.target.add(d); } lastPos.copy(cp);
+  controls.update(); renderer.render(scene,camera);
+  // Historial e interfaz
+  histAcc+=simDt; if(histAcc>=0.04){histAcc=0; hist.push({t:simT,th:deg(S[2]),x:S[0]-x0,xr:REF.x-x0,tau:last.tau}); while(hist.length&&hist[0].t<simT-10.5) hist.shift();}
+  uiAcc+=dtw; mathAcc+=dtw;
+  if(uiAcc>0.1){ uiAcc=0;
+    $('hTh').textContent=f(deg(S[2]),1)+'°'; $('hX').textContent=f(S[0],2)+' m'; $('hV').textContent=f(S[1],2)+' m/s'; $('hPsi').textContent=f(deg(wrap(W.psi)),0)+'°'; $('hTau').textContent=f(last.tau,2)+' N·m';
+    [['wL',last.tL],['wR',last.tR]].forEach(([id,t])=>{ const el=$(id), lv=el.querySelector('.lvl'), fr=Math.min(1,Math.abs(t)/PAR.tmax)*50; lv.style.height=fr+'%'; lv.style.top=t>=0?(50-fr)+'%':'50%'; el.dataset.sat=Math.abs(t)>=PAR.tmax*0.99?'1':'0'; });
+    const st=$('state'); st.dataset.s=fallen?'fall':last.sat?'sat':'ok'; $('stateTxt').textContent=fallen?'Caído':last.sat?'Motores saturados':'Equilibrado';
+    $('clock').textContent='t = '+simT.toFixed(1)+' s'; drawTrend();
+  }
+  if(mathAcc>0.15){ mathAcc=0; updateMath(); }
+  demoTick(simDt);
+  if(!CAPTURE) requestAnimationFrame(()=>frame());
+}
+
+/* ═════════════ Demo guiada ═════════════ */
+function setSlider(id,v){ const el=$(id); const sec=el.closest('.sec'); if(sec&&sec.hidden){ $('tab-'+sec.id.replace('sec-','')).click(); } el.value=v; el.dispatchEvent(new Event('input')); }
+function kick(sign,mag){ if(!fallen){ S[3]+=sign*mag; } }
+const DEMO=[
+  {t:0,  c:'Sin control, el robot es un péndulo invertido: tiene un polo en +8 rad/s y se cae en menos de un segundo. El LQR mueve los polos al lado estable.', a:()=>{ $('tab-mis').click(); showCard('eq-poles'); }},
+  {t:6,  c:'Empujón: el LQR mueve las ruedas por debajo del centro de masa y lo recupera. Fíjate en el arco θ y en el par de cada rueda.', a:()=>{ kick(1,4); showCard('eq-lqr'); }},
+  {t:12, c:'Le pido avanzar 1,5 m, en cámara lenta. Fíjate: primero retrocede unos centímetros para inclinarse hacia adelante (fase no mínima).', a:()=>{ setSpeed(0.25); setMission('step'); showCard('eq-nmp'); }},
+  {t:13.2, c:null, a:()=>{ setSpeed(1); }},
+  {t:18, c:'Subo las patas a 0,36 m: el centro de masa sube, el péndulo cae más lento (el polo inestable baja) y el LQR se recalcula solo.', a:()=>{ $('tab-rob').click(); setSlider('hLeg',0.36); showCard('eq-lin'); }},
+  {t:21, c:null, a:()=>{ showCard('eq-poles'); }},
+  {t:24, c:'Mismo empujón con las patas largas: se inclina menos rápido y se recupera con suavidad.', a:()=>{ kick(-1,4); }},
+  {t:29, c:'Ahora hago "perezoso" al LQR: R = 50 (usar par cuesta mucho). La K baja y los polos con LQR se acercan al eje.', a:()=>{ $('tab-lqr').click(); setSlider('rr',1.7); showCard('eq-lqr'); }},
+  {t:32, c:'Empujón con R alto: ahorra par, pero se inclina mucho más y tarda más en volver.', a:()=>{ kick(1,4); }},
+  {t:38, c:'Restauro Q, R y la altura de las patas.', a:()=>{ $('resetQ').click(); setSlider('hLeg',0.25); }},
+  {t:40, c:'Misión "ocho": avanza a 0,6 m/s y alterna el giro. La suma de los pares mantiene el equilibrio y la diferencia τ_R − τ_L lo hace girar.', a:()=>{ $('tab-mis').click(); setMission('eight'); showCard('eq-yaw'); }},
+  {t:52, c:'Se detiene. Ahora un empujón fuerte con motores de solo 1,2 N·m por rueda…', a:()=>{ setMission('hold'); }},
+  {t:55, c:'Los motores se saturan, el LQR no recibe el par que pide y el robot se cae.', a:()=>{ kick(1,8); showCard('eq-yaw'); }},
+  {t:60, c:'Lo levanto y les doy motores de 3 N·m por rueda. Mismo empujón fuerte…', a:()=>{ $('lift').click(); $('tab-rob').click(); setSlider('tMax',3); }},
+  {t:62, c:'…y ahora sí se recupera: el par extra le alcanza para volver a ponerse bajo el centro de masa.', a:()=>{ kick(1,8); }},
+  {t:68, c:'Fin de la demo. Prueba tú: cada control tiene un botón f(x) que lleva a su ecuación.', a:()=>{}},
+  {t:74, c:null, a:()=>stopDemo()},
+];
+let demoOn=false, demoT=0, demoI=0;
+const nCap=DEMO.filter(d=>d.c).length;
+function resetAll(){
+  [['hLeg',0.25],['mBody',3],['tMax',1.2]].forEach(([id,v])=>{$(id).value=v; $(id).dispatchEvent(new Event('input'));});
+  $('autoK').checked=true; $('resetQ').click(); qPending=geomPending=false; readQ(); recompute(true); $('kOut').textContent='['+CTRL.K.map(k=>f(k,2)).join(', ')+']';
+  resetRobot(false); simT=0; hist.length=0; trN=0; trGeo.setDrawRange(0,0); setMission('hold');
+}
+function startDemo(){ resetAll(); demoOn=true; demoT=0; demoI=0; setSpeed(1); $('demoBtn').setAttribute('aria-pressed','true'); $('demoBtn').textContent='■ Detener demo'; }
+function stopDemo(){ demoOn=false; $('cap').hidden=true; $('demoBtn').setAttribute('aria-pressed','false'); $('demoBtn').textContent='▶ Demo guiada'; }
+let capK=0;
+function demoTick(simDt){
+  if(!demoOn) return; demoT+=simDt;
+  while(demoI<DEMO.length && demoT>=DEMO[demoI].t){ const st=DEMO[demoI]; demoI++; if(st.c){ capK=DEMO.slice(0,demoI).filter(d=>d.c).length; $('cap').hidden=false; $('capN').textContent=capK+' / '+nCap; $('capT').innerHTML=st.c; } st.a(); }
+}
+$('demoBtn').addEventListener('click',()=>demoOn?stopDemo():startDemo());
+window.__sim={frame:(dt)=>frame(dt), startDemo, demoDone:()=>!demoOn, demoTime:()=>demoT};
+
+$('kOut').textContent='['+CTRL.K.map(k=>f(k,2)).join(', ')+']';
+recompute(false);
+resize(); applyTheme();
+if(!CAPTURE) requestAnimationFrame(()=>frame());
+})();
+</script>
+
+</body>
+</html>
