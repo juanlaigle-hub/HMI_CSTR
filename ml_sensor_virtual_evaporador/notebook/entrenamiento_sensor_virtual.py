@@ -115,28 +115,68 @@ print('minutos de entrenamiento',TR.sum(),' de prueba',TE.sum(),' | análisis de
 # %% [markdown]
 # ## 4. Sensor virtual de °Brix
 # Se comparan, de menor a mayor complejidad:
-# - una predicción ingenua (°Brix = 70);
+# - la predicción ingenua (°Brix = 70);
 # - un modelo **físico** calibrado (EPE + balance de masa);
 # - **Ridge** sobre sensores y rasgos físicos;
-# - **gradient boosting con restricciones de monotonía**: el °Brix predicho solo puede **subir** con los rasgos
-#   físicos de °Brix y con el vapor, y solo puede **bajar** con la alimentación. Así el modelo no puede aprender
-#   relaciones que contradigan la física.
+# - **gradient boosting con restricciones de monotonía**;
+# - una **regresión lineal con restricciones de signo**: el °Brix solo puede subir con el vapor y con los rasgos físicos
+#   de °Brix, y solo puede bajar con la alimentación.
+#
+# **Cómo se elige el modelo, sin mirar la prueba.** Validación cruzada agrupada por campaña (`GroupKFold`) dentro del
+# entrenamiento, y dos pruebas físicas: +10 % de alimentación tiene que bajar el °Brix y +10 % de vapor tiene que subirlo,
+# en el 100 % de los casos. Se elige el modelo con menor error de validación **entre los que pasan las pruebas físicas**.
+# Las columnas de prueba y del ensayo B se miran recién después de elegir.
 
 # %%
+from sklearn.model_selection import GroupKFold
+from scipy.optimize import lsq_linear
+class LinealConSignos:
+    """Regresión lineal con penalización ridge y restricciones de signo físicas (+1 = coeficiente ≥ 0, −1 = ≤ 0)."""
+    def __init__(self,signos,alpha=1.0): self.signos=signos; self.alpha=alpha
+    def fit(self,X,y):
+        X=np.asarray(X,float); y=np.asarray(y,float); self.mu=X.mean(0); self.sd=X.std(0)+1e-9; Z=(X-self.mu)/self.sd; ym=y.mean()
+        A=np.vstack([Z,np.sqrt(self.alpha)*np.eye(Z.shape[1])]); b=np.r_[y-ym,np.zeros(Z.shape[1])]
+        lb=np.array([0 if s>0 else -np.inf for s in self.signos]); ub=np.array([0 if s<0 else np.inf for s in self.signos])
+        w=lsq_linear(A,b,bounds=(lb,ub)).x; self.coef_=w/self.sd; self.intercept_=ym-(self.mu*self.coef_).sum(); return self
+    def predict(self,X): return np.asarray(X,float)@self.coef_+self.intercept_
 XB=SENS+['Brix_EPE','Brix_MB']; yB='Brix_refract'
-# restricciones físicas: +1 = el °Brix solo puede subir con esa variable; -1 = solo puede bajar
-mono=[{'F_th':-1,'vapor_th':1}.get(c,0) for c in SENS]+[1,1]
-modelos={'Físico (EPE + balance)':(LinearRegression(),['Brix_EPE','Brix_MB']),'Ridge (sensores + físicos)':(Ridge(1.0),XB),
-         'Gradient boosting monótono':(HistGradientBoostingRegressor(max_iter=300,min_samples_leaf=40,monotonic_cst=mono,random_state=0),XB)}
-filas=[{'modelo':'Ingenuo (°Brix = 70)','MAE prueba':mean_absolute_error(hs.real_Brix[TE],np.full(TE.sum(),70.0)),'MAE ensayo B':mean_absolute_error(hs.real_Brix[ENSB],np.full(ENSB.sum(),70.0))}]
-for nom,(m,X) in modelos.items():
-    m.fit(hs.loc[TR,X],hs.loc[TR,yB])
-    filas.append({'modelo':nom,'MAE prueba':mean_absolute_error(hs.real_Brix[TE],m.predict(hs.loc[TE,X])),'MAE ensayo B':mean_absolute_error(hs.real_Brix[ENSB],m.predict(hs.loc[ENSB,X]))})
-tB=pd.DataFrame(filas).set_index('modelo').round(2); print(tB); tB.to_csv(MOD/'comparacion_brix.csv')
-mB=modelos['Gradient boosting monótono'][0]
-e=hs[ENSB]; fig,ax=plt.subplots(figsize=(11,3.2)); ax.plot(e.t_min/60,e.real_Brix,lw=1.2,label='°Brix real'); ax.plot(e.t_min/60,mB.predict(e[XB]),lw=1,label='sensor virtual')
-ax.plot(e.t_min/60,e.Brix_refract,lw=.5,alpha=.5,label='refractómetro'); ax.set_xlabel('hora del ensayo B (no visto)'); ax.set_ylabel('°Brix'); ax.legend(); ax.set_title('Ensayo con escalones de alimentación: el sensor virtual sigue al °Brix real')
+SIG={'F_th':-1,'vapor_th':1}; signos=[SIG.get(c,0) for c in SENS]+[1,1]
+class Fijo:
+    def __init__(s,v): s.v=v
+    def fit(s,X,y): return s
+    def predict(s,X): return np.full(len(X),s.v)
+candidatos={'Ingenuo (°Brix = 70)':(lambda:Fijo(70.0),XB),'Físico (EPE + balance)':(lambda:LinearRegression(),['Brix_EPE','Brix_MB']),
+            'Ridge (sensores + físicos)':(lambda:Ridge(1.0),XB),
+            'Gradient boosting monótono':(lambda:HistGradientBoostingRegressor(max_iter=300,min_samples_leaf=40,monotonic_cst=signos,random_state=0),XB),
+            'Lineal con restricciones de signo':(lambda:LinealConSignos(signos),XB)}
+def mb(df): return df.F_th*df.Bf/np.maximum(1,df.F_th-4.0*df.vapor_th)
+def prueba_fisica(m,X):
+    if X==['Brix_EPE','Brix_MB'] or isinstance(m,Fijo): base=hs[TR]
+    base=hs[TR].copy(); hF=base.copy(); hF['F_th']*=1.10; hF['Brix_MB']=mb(hF); hS=base.copy(); hS['vapor_th']*=1.10; hS['Brix_MB']=mb(hS)
+    p0=m.predict(base[X]); return (m.predict(hF[X])<p0).mean()*100,(m.predict(hS[X])>p0).mean()*100
+filas=[]; ajustados={}; grupos=hs.loc[TR,'campana']
+for nom,(mk,X) in candidatos.items():
+    cv=[mean_absolute_error(hs.loc[TR].iloc[b_]['real_Brix'],mk().fit(hs.loc[TR].iloc[a_][X],hs.loc[TR].iloc[a_][yB]).predict(hs.loc[TR].iloc[b_][X])) for a_,b_ in GroupKFold(5).split(hs.loc[TR,X],groups=grupos)]
+    m=mk().fit(hs.loc[TR,X],hs.loc[TR,yB]); ajustados[nom]=(m,X); f1,f2=prueba_fisica(m,X)
+    filas.append({'modelo':nom,'MAE validación cruzada':np.mean(cv),'+10 % alim. → baja [%]':f1,'+10 % vapor → sube [%]':f2,
+                  'MAE prueba':mean_absolute_error(hs.real_Brix[TE],m.predict(hs.loc[TE,X])),'MAE ensayo B':mean_absolute_error(hs.real_Brix[ENSB],m.predict(hs.loc[ENSB,X]))})
+tB=pd.DataFrame(filas).set_index('modelo').round(2); print(tB.to_string()); tB.to_csv(MOD/'comparacion_brix.csv')
+aptos=tB[(tB['+10 % alim. → baja [%]']==100)&(tB['+10 % vapor → sube [%]']==100)&(tB.index!='Ingenuo (°Brix = 70)')]
+elegido=aptos['MAE validación cruzada'].idxmin(); mB,XBsel=ajustados[elegido]
+print('\nModelo elegido (menor error de validación entre los que respetan la física):',elegido)
+if hasattr(mB,'coef_'): print('Coeficientes:',dict(zip(XBsel,np.round(mB.coef_,3))))
+e=hs[ENSB]; fig,ax=plt.subplots(figsize=(11,3.2)); ax.plot(e.t_min/60,e.real_Brix,lw=1.2,label='°Brix real'); ax.plot(e.t_min/60,mB.predict(e[XBsel]),lw=1,label='sensor virtual ('+elegido.lower()+')')
+ax.plot(e.t_min/60,e.Brix_refract,lw=.5,alpha=.5,label='refractómetro'); ax.axhline(76,ls=':',color='crimson',lw=.8); ax.text(0.1,76.4,'enclavamiento de °Brix alto',fontsize=7,color='crimson')
+ax.set_xlabel('hora del ensayo B (no visto)'); ax.set_ylabel('°Brix'); ax.legend(loc='lower left'); ax.set_title('Ensayo con escalones de alimentación: el sensor virtual sigue al °Brix real')
 fig.tight_layout(); fig.savefig(FIG/'03_brix_ensayo.png'); plt.show()
+
+# %% [markdown]
+# El gradient boosting pasa las pruebas físicas por construcción, pero generaliza peor: en validación cruzada y en el
+# ensayo B tiene más error que los modelos lineales. El Ridge sin restricciones tiene buen error promedio, pero **falla la
+# prueba del vapor**: por la colinealidad entre variables, le da coeficiente negativo al °Brix por balance de masa. El
+# lineal con restricciones de signo tiene casi el mismo error de validación que el Ridge y respeta la física en todos los
+# casos, así que es el que se despliega. Además es el más fácil de auditar: cada coeficiente se puede leer y discutir
+# con los ingenieros de proceso.
 
 # %% [markdown]
 # ## 5. Sensor virtual de HMF y color: pocos datos de laboratorio
@@ -193,7 +233,7 @@ ax=cv.plot(marker='o',figsize=(6,3.3)); ax.set_ylabel('MAE de HMF en prueba [mg/
 # Se simula un cambio físico sobre los datos de prueba y se mira hacia dónde se mueve la predicción:
 # - **+10 °C en todas las temperaturas** (vapor más caliente, en parte fuera del rango de entrenamiento): el HMF
 #   predicho tiene que **subir** en todas las filas.
-# - **+10 % de alimentación** con el resto igual: el °Brix predicho tiene que **bajar**.
+# - **+10 % de alimentación** con el resto igual: el °Brix predicho tiene que **bajar**; y con **+10 % de vapor**, **subir**.
 #
 # Se cuenta el porcentaje de filas en que cada modelo responde en el sentido correcto.
 
@@ -207,15 +247,15 @@ Lte=Lte.copy()
 for kk,v in rasgos_calidad(Lte,'H',EAH).items(): Lte[kk]=v
 gb_raw=HistGradientBoostingRegressor(max_iter=200,min_samples_leaf=5,random_state=0).fit(L.loc[TRL,RAW],L.loc[TRL,'HMF_lab'])
 ok_fis=(mH.predict(Lup[XH])>mH.predict(Lte[XH])).mean(); ok_gb=(gb_raw.predict(Lup[RAW])>gb_raw.predict(Lte[RAW])).mean()
-hte=hs[TE].copy(); hF=hte.copy(); hF['F_th']*=1.10; hF['Brix_MB']=hF.F_th*hF.Bf/np.maximum(1,hF.F_th-4.0*hF.vapor_th)
-ok_brix=(mB.predict(hF[XB])<=mB.predict(hte[XB])).mean()
-fen=pd.DataFrame({'prueba':['+10 °C → HMF sube','+10 °C → HMF sube','+10 % alimentación → °Brix baja'],'modelo':['Caja gris (HMF)','Gradient boosting (sensores crudos)','Gradient boosting monótono (°Brix)'],
-                  '% de filas en el sentido correcto':[ok_fis*100,ok_gb*100,ok_brix*100]}).round(1)
+fb,fs=prueba_fisica(mB,XBsel)
+fen=pd.DataFrame({'prueba':['+10 °C → HMF sube','+10 °C → HMF sube','+10 % alimentación → °Brix baja','+10 % vapor → °Brix sube'],
+                  'modelo':['Caja gris (HMF)','Gradient boosting (sensores crudos)',elegido+' (°Brix)',elegido+' (°Brix)'],
+                  '% de filas en el sentido correcto':[ok_fis*100,ok_gb*100,fb,fs]}).round(1)
 print(fen.to_string(index=False)); fen.to_csv(MOD/'chequeo_fenomenologia_modelos.csv',index=False)
-assert ok_fis>0.99 and ok_brix>0.99
+assert ok_fis>0.99 and fb==100 and fs==100
 
 # %% [markdown]
-# El modelo de caja gris y el gradient boosting con restricciones de monotonía responden en el sentido correcto en todos
+# El modelo de caja gris y el sensor de °Brix con restricciones de signo responden en el sentido correcto en todos
 # los casos. El gradient boosting sobre sensores crudos **no puede extrapolar**: un árbol devuelve el valor de su última
 # hoja, así que fuera del rango de entrenamiento la predicción se "aplana" y deja de subir con la temperatura, justo en
 # la situación de riesgo (vapor más caliente que lo habitual). El término de Arrhenius, en cambio, extrapola con la física.
@@ -236,7 +276,7 @@ print('residuo medio',Lr.residuo.mean().round(3),'desvío',Lr.residuo.std().roun
 # %% [markdown]
 # ## 9. Exportación para el despliegue en el DCS o SCADA
 # Se exportan a JSON:
-# - el gradient boosting monótono de °Brix (árboles);
+# - el modelo lineal de °Brix (coeficientes);
 # - las constantes del modelo de caja gris de HMF y color;
 # - las constantes de los rasgos físicos.
 #
@@ -255,10 +295,11 @@ def pred_hgb(mj,x):
         while not a['h'][i]: i=a['l'][i] if x[a['f'][i]]<=a['t'][i] else a['r'][i]
         s+=a['v'][i]
     return s
-modelo={'filtro_min':VENT,'filtro_calidad_min':VENT_Q,'Tref':TREF,'EaH':EAH,'EaC':EAC,'masas_diseno':MDIS,'economia':4.0,'brix':dict(exportar_hgb(mB),rasgos=XB),
+modelo={'filtro_min':VENT,'filtro_calidad_min':VENT_Q,'Tref':TREF,'EaH':EAH,'EaC':EAC,'masas_diseno':MDIS,'economia':4.0,
+        'brix':{'tipo':'lineal','modelo':elegido,'rasgos':XBsel,'coef':mB.coef_.tolist(),'ordenada':float(mB.intercept_)},
         'hmf':{'rasgos':XH,'coef':mH.coef_.tolist(),'ordenada':float(mH.intercept_)},'color':{'rasgos':XC,'coef':mC.coef_.tolist(),'ordenada':float(mC.intercept_)}}
-Xs=hs.loc[TE,XB].values[:300]; dif=np.abs(np.array([pred_hgb(modelo['brix'],x) for x in Xs])-mB.predict(hs.loc[TE,XB].iloc[:300])).max()
-print('Diferencia máxima °Brix exportado vs scikit-learn:',dif); assert dif<1e-6
+Xs=hs.loc[TE,XBsel].values[:300]; dif=np.abs(Xs@np.array(modelo['brix']['coef'])+modelo['brix']['ordenada']-mB.predict(hs.loc[TE,XBsel].iloc[:300])).max()
+print('Diferencia máxima °Brix exportado vs Python:',dif); assert dif<1e-9
 json.dump(modelo,open(MOD/'sensor_virtual.json','w'),separators=(',',':'))
 print('Modelo exportado:',(MOD/'sensor_virtual.json').stat().st_size//1024,'kB')
 
