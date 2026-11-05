@@ -209,7 +209,7 @@ main.hl-ts .math .hl-ts, main.hl-tcw .math .hl-tcw, main.hl-foul .math .hl-foul,
         <div class="sl" data-eq="energy,quality" data-hl="ts"><div class="row"><label for="ts">Temperatura del vapor vivo T<sub>s</sub></label><output id="vts"></output><button class="fx" data-card="eq-energy">f(x)</button></div><input type="range" id="ts" min="95" max="120" step="0.5" value="105"></div>
         <div class="sl" data-eq="ctrl" data-hl="sp"><div class="row"><label for="bsp">Consigna de °Brix del concentrado</label><output id="vbsp"></output><button class="fx" data-card="eq-ctrl">f(x)</button></div><input type="range" id="bsp" min="60" max="72" step="0.5" value="70"></div>
         <button class="act prim" id="auto" aria-pressed="true">Control de °Brix automático</button>
-        <div class="sl" data-eq="mass"><div class="row"><label for="fman">Alimentación manual</label><output id="vfman"></output><button class="fx" data-card="eq-mass">f(x)</button></div><input type="range" id="fman" min="6" max="28" step="0.5" value="20" disabled></div>
+        <div class="sl" data-eq="mass"><div class="row"><label for="fman">Alimentación manual</label><output id="vfman"></output><button class="fx" data-card="eq-mass">f(x)</button></div><input type="range" id="fman" min="10" max="28" step="0.5" value="20" disabled></div>
         <p class="note">En automático, el controlador mueve la alimentación para mantener el °Brix del concentrado. En manual, la decides tú.</p>
       </div>
       <div class="sec" id="sec-dist" role="tabpanel" hidden>
@@ -276,7 +276,7 @@ main.hl-ts .math .hl-ts, main.hl-tcw .math .hl-tcw, main.hl-foul .math .hl-foul,
       <div class="tex">\[ e = B_{\text{med}} - \class{hl-sp}{B_{\text{sp}}} \]
       \[ F = \bar F + K_p\,e + \frac{K_p}{T_i}\int e\,dt \]
       \[ \tau_r\,\dot B_{\text{med}} = B_5 - B_{\text{med}}, \quad \tau_r = 20\ \text{s} \]</div>
-      <p>Si el concentrado sale con demasiados °Brix, el evaporador "sobra" y se puede alimentar más; si sale bajo, hay que alimentar menos. K<sub>p</sub> = 0,25 t/h por °Brix, T<sub>i</sub> = 2,5 min. La integral está acotada al rango de la bomba de alimentación (6–28 t/h) para que no se acumule cuando satura.</p>
+      <p>Si el concentrado sale con demasiados °Brix, el evaporador "sobra" y se puede alimentar más; si sale bajo, hay que alimentar menos. K<sub>p</sub> = 0,25 t/h por °Brix, T<sub>i</sub> = 2,5 min. La integral está acotada al rango de la bomba de alimentación (10–28 t/h) para que no se acumule cuando satura.</p>
       <div class="live" id="lv-ctrl"></div>
     </section>
     <section class="eq" id="eq-quality">
@@ -310,7 +310,7 @@ window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']]},svg
 (function(){
 "use strict";
 // Evaporador de 5 efectos de película descendente para jugo de manzana: núcleo físico.
-const NE=5, LAMBDA=2330, CP=3.8; // kJ/kg, kJ/(kg·K) (cp medio del jugo)
+const NE=5, LAMBDA=2330, CP=3.8, X_MAX=0.80; // kJ/kg, kJ/(kg·K) (cp medio del jugo)
 function tsat(P){ // °C, P en kPa (Antoine para agua, 1–200 kPa)
   const mmHg=P*7.50062; return 1730.63/(8.07131-Math.log10(mmHg))-233.426; }
 function psat(T){ return Math.pow(10,8.07131-1730.63/(233.426+T))/7.50062; } // kPa
@@ -319,7 +319,8 @@ function makePlant(o){
   const P=Object.assign({
     Ts:105, Tcw:28, Bf:12, Tf:60, F:20000/3600, // vapor vivo °C, agua de condensador °C, °Brix y T alimentación, kg/s
     UA:[230,220,200,170,120], UAc:300, foul:0, hold:[300,250,200,150,120], // kW/K, kg
-    Bsp:70, auto:true, Kp:0.07, Ti:150, Fmin:6000/3600, Fmax:28000/3600,
+    Bsp:70, auto:true, Kp:0.07, Ti:150, Fmin:10000/3600, // caudal mínimo de mojado de los tubos de película descendente
+    Fmax:28000/3600,
     tankCool:true, tankT:10, tankHours:2,
     // cinética de daño térmico (por kg de sólidos solubles)
     kH:0.18, EaH:130e3, kC:0.0011, EaC:100e3, Tref:90,
@@ -341,8 +342,15 @@ function chain(P,S,Q1,UA,be){
   for(let i=0;i<NE;i++){
     Q[i]=i===0?Q1:V[i-1]*LAMBDA;
     T[i]=Tc-Q[i]/UA[i];
-    const sens=Lprev*CP*(Tprev-T[i]);
-    V[i]=Math.max(0,Math.min(Lprev*0.97,(Q[i]+sens)/LAMBDA));
+    let sens=Lprev*CP*(Tprev-T[i]);
+    // Límite físico: un efecto no puede evaporar más agua que la necesaria para llevar el jugo a X_MAX (80 °Brix).
+    // Si el calor disponible alcanzaría para más, la transferencia se reduce sola: el ΔT baja y el efecto se calienta.
+    const xin=i===0?P.Bf/100:S.x[i-1], Vmax=Math.max(0,Lprev*(1-xin/X_MAX));
+    if((Q[i]+sens)/LAMBDA>Vmax){
+      const k=Lprev*CP/UA[i]; T[i]=Math.min(Tc,(Tc-(Vmax*LAMBDA-Lprev*CP*Tprev)/UA[i])/(1+k));
+      Q[i]=UA[i]*(Tc-T[i]); sens=Lprev*CP*(Tprev-T[i]);
+    }
+    V[i]=Math.max(0,Math.min(Lprev*0.97,Vmax,(Q[i]+sens)/LAMBDA));
     L[i]=Lprev-V[i]; Tv[i]=T[i]-be[i]; Tc=Tv[i]; Tprev=T[i]; Lprev=L[i];
   }
   const res=V[NE-1]*LAMBDA-P.UAc*(Tv[NE-1]-P.Tcw);
@@ -352,8 +360,12 @@ function energy(P,S){
   const foulK=[0.6,0.7,0.8,0.9,1.0]; // el ensuciamiento pesa más en los efectos concentrados
   const UA=P.UA.map((u,i)=>u*(1-P.foul*foulK[i]));
   const be=S.x.map(v=>bpe(v*100));
-  let lo=0, hi=UA[0]*(P.Ts-P.Tcw), r=null;
-  for(let it=0;it<60;it++){ const m=(lo+hi)/2; r=chain(P,S,m,UA,be); if(r.res>0) hi=m; else lo=m; }
+  // Con el límite de evaporación, el residuo del condensador puede tener dos raíces: la física (la de menor Q1)
+  // y otra con el 1er efecto evaporando todo y los demás secos. Se recorre Q1 de menor a mayor hasta el primer
+  // cambio de signo y recién ahí se aplica la bisección.
+  const Qtop=UA[0]*(P.Ts-P.Tcw), NB=40; let lo=0, hi=Qtop, r=null;
+  for(let k=1;k<=NB;k++){ const q=Qtop*k/NB; if(chain(P,S,q,UA,be).res>0){ lo=Qtop*(k-1)/NB; hi=q; break; } }
+  for(let it=0;it<40;it++){ const m=(lo+hi)/2; r=chain(P,S,m,UA,be); if(r.res>0) hi=m; else lo=m; }
   S.Q=r.Q; S.V=r.V; S.L=r.L; S.T=r.T; S.Tv=r.Tv; S.Pk=r.Tv.map(psat); S.UAe=UA; S.be=be;
   S.steam=r.Q[0]/2240; S.Qc=r.V[NE-1]*LAMBDA; S.Pc=psat(r.Tv[NE-1]);
 }
