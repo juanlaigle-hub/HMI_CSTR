@@ -8,7 +8,7 @@ Simulador 3D de un evaporador de película descendente de 5 efectos, del tipo us
 - recuperación de aromas en el primer efecto;
 - **daño térmico**: formación de HMF y pardeamiento (color) por Arrhenius, efecto por efecto y en el tanque de producto.
 
-**Video de la demo guiada:** [`demo_evaporador.mp4`](demo_evaporador.mp4).
+**Video de la demo guiada:** [`demo_evaporador.mp4`](demo_evaporador.mp4) (158 s).
 
 ## Cómo abrirlo
 
