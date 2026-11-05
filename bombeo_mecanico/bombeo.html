@@ -381,7 +381,7 @@ function stepModel(M,S,dt){
     const V=M.Ap*Math.max(0.005,yp-S.yref);
     // fugas
     let P=S.ng/Math.max(1e-9,V-S.Vl);
-    if(M.leakTV>0&&P<M.Pdis){ S.Vl+=1.5e-11*M.leakTV*(M.Pdis-Math.max(P,Pin))*dt; }
+    if(M.leakTV>0&&P<M.Pdis){ const back=1.5e-11*M.leakTV*(M.Pdis-Math.max(P,Pin))*dt; S.Vl+=back; S.produced-=back; } // lo que se fuga desde la tubería se resta de lo producido
     if(M.leakSV>0&&P>Pin){ const out=Math.min(S.Vl,1.5e-11*M.leakSV*(Math.min(P,M.Pdis)-Pin)*dt); S.Vl-=out; S.hf+=out/M.Aann; }
     P=S.ng/Math.max(1e-9,V-S.Vl);
     S.TV=false; S.SV=false;
