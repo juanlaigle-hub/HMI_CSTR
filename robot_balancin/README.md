@@ -2,11 +2,11 @@
 
 Simulador interactivo de un robot autoequilibrado de dos ruedas con patas de altura variable. La física es no lineal, el control es óptimo (LQR) y se calcula en el propio navegador. La escena 3D (three.js) muestra el robot, la vertical, el ángulo θ, el centro de masa, el par de cada rueda y la huella en el suelo. El panel **"∑ Ver la matemática"** muestra las ecuaciones de este documento con sus valores en vivo, incluidos los **polos del sistema en el plano complejo**. Al mover un control, se resaltan en rosa la ecuación y el término que cambia.
 
-**Video de la demo guiada:** [`demo_robot.mp4`](demo_robot.mp4) (78 s).
+<p><img src="../assets/robot-1.jpg" width="49%" alt=""> <img src="../assets/robot-2.jpg" width="49%" alt=""></p>
 
 ## Cómo abrirlo
 
-Abre `robot.html` en el navegador con doble clic. three.js y MathJax están incluidos en `vendor/`, así que funciona sin internet. El botón **"▶ Demo guiada"** reproduce la misma secuencia del video, con subtítulos.
+Abre `robot.html` en el navegador con doble clic. three.js y MathJax están incluidos en `vendor/`, así que funciona sin internet. El botón **"▶ Demo guiada"** reproduce una secuencia guiada, con subtítulos.
 
 | Pestaña | Qué se puede mover |
 |---|---|
@@ -204,5 +204,4 @@ Euler semi-implícito con paso fijo de 2 ms: primero se actualizan las velocidad
 ## Archivos
 
 - `robot.html`: el simulador completo (modelo, LQR, escena 3D, panel de ecuaciones y demo guiada).
-- `demo_robot.mp4`: grabación de la demo guiada.
 - `vendor/`: three.js r128 (MIT) y MathJax 3.2.2 (Apache 2.0).
