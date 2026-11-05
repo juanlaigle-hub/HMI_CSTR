@@ -84,6 +84,16 @@ $$
 
 **Solución:** con $Q_1$ dado se recorre toda la cadena y se obtiene el residuo del condensador, $r(Q_1) = V_5\lambda - UA_c(T_{v,5} - T_{cw})$. Ese residuo crece con $Q_1$, así que $Q_1$ se encuentra por **bisección** en cada paso. Las temperaturas y las presiones salen de esa misma cadena.
 
+### Límites físicos de operación
+
+- **Viscosidad:** cerca de 80 °Brix el jugo se vuelve muy viscoso y el coeficiente de transferencia cae. Cada $U_iA_i$ se
+  multiplica por un factor logístico del °Brix del efecto: $1/(1 + e^{(x_i - 0{,}83)/0{,}03})$. Así la evaporación se
+  autolimita de forma suave.
+- **Caudal mínimo de mojado:** 10 t/h. Por debajo, los tubos de película descendente se secan.
+- **Enclavamiento de °Brix alto:** si el concentrado supera 76 °Brix, se fuerza más alimentación, también con el control
+  en manual, como hacen las plantas para no quemar el producto. Más allá de unos 78 °Brix el modelo de energía en
+  cadena deja de tener una solución única, así que la simulación no se lleva a esa zona.
+
 ## 3. Elevación del punto de ebullición (EPE) y ΔT útil
 
 El jugo hierve por encima del agua pura a la misma presión:
