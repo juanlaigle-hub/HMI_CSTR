@@ -2,13 +2,13 @@
 
 Simulador 3D de un pozo con bombeo mecánico: aparato individual de bombeo (AIB), sarta de varillas de 1500 m y bomba de fondo con sus válvulas. La sarta se modela como un sólido elástico con la **ecuación de onda amortiguada**. La bomba tiene una cámara con líquido y gas, y válvulas que abren y cierran según las presiones. Con eso se obtienen la **carta dinamométrica de superficie y la de fondo** en tiempo real, igual que las que mide un dinamómetro en el campo.
 
-**Video de la demo guiada:** [`demo_bombeo.mp4`](demo_bombeo.mp4) (148 s).
+<p><img src="../assets/bombeo-1.jpg" width="49%" alt=""> <img src="../assets/bombeo-2.jpg" width="49%" alt=""></p>
 
 ## Cómo abrirlo
 
 Abre `bombeo.html` en el navegador con doble clic. three.js y MathJax están incluidos en `vendor/`, así que funciona sin internet.
 
-- **"▶ Demo guiada":** reproduce la secuencia del video con subtítulos.
+- **"▶ Demo guiada":** reproduce una secuencia guiada con subtítulos.
 - **"∑ Ver la matemática":** abre el panel con las ecuaciones y sus valores en vivo.
 - **Vistas de cámara:** vista general, aparato y bomba de fondo.
 
@@ -194,5 +194,4 @@ $N$ queda entre 4 GPM y el valor de operación, y el variador cambia la velocida
 ## Archivos
 
 - `bombeo.html`: el simulador completo.
-- `demo_bombeo.mp4`: grabación de la demo guiada.
 - `vendor/`: three.js r128 (MIT) y MathJax 3.2.2 (Apache 2.0).

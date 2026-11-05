@@ -8,14 +8,14 @@ Simulador 3D de un evaporador de película descendente de 5 efectos, del tipo us
 - recuperación de aromas en el primer efecto;
 - **daño térmico**: formación de HMF y pardeamiento (color) por Arrhenius, efecto por efecto y en el tanque de producto.
 
-**Video de la demo guiada:** [`demo_evaporador.mp4`](demo_evaporador.mp4) (158 s).
+<p><img src="../assets/evaporador-1.jpg" width="49%" alt=""> <img src="../assets/evaporador-2.jpg" width="49%" alt=""></p>
 
 ## Cómo abrirlo
 
 Abre `evaporador.html` en el navegador con doble clic. three.js y MathJax están incluidos en `vendor/`, así que funciona sin internet.
 
 - **Velocidad:** el tiempo de planta corre ×30 por defecto (un minuto de planta cada 2 segundos). Hay opciones ×10 y ×120.
-- **"▶ Demo guiada":** reproduce la secuencia del video con subtítulos.
+- **"▶ Demo guiada":** reproduce una secuencia guiada con subtítulos.
 - **"∑ Ver la matemática":** abre el panel con las ecuaciones y sus valores en vivo.
 
 | Pestaña | Qué se puede mover |
@@ -194,5 +194,4 @@ Con un 14 % del jugo evaporado en el 1<sup>er</sup> efecto, se recupera alrededo
 ## Archivos
 
 - `evaporador.html`: el simulador completo.
-- `demo_evaporador.mp4`: grabación de la demo guiada.
 - `vendor/`: three.js r128 (MIT) y MathJax 3.2.2 (Apache 2.0).

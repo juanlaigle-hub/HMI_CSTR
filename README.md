@@ -59,25 +59,25 @@ the reactor runs away to about 339 K; raising F_j to 40 L/min and lowering T_j,i
 
 ## Also in this repository: 3D control simulators
 
-Four standalone simulators open directly in a browser and work offline. Each has an optional "∑ Ver la matemática" panel that shows the equations with live values and highlights the term that changes when a control is moved, plus a "▶ Demo guiada" button with a recorded video.
+Four standalone simulators open directly in a browser and work offline. Each has an optional "∑ Ver la matemática" panel that shows the equations with live values and highlights the term that changes when a control is moved, plus a "▶ Demo guiada" button.
 
-| Folder | Simulator | Control | Math | Video |
-|---|---|---|---|---|
-| `drone_3d/` | 450 mm quadcopter, 6-DOF rigid-body dynamics, wind gusts, payload, motor failure | Cascaded PID (position → attitude) + X mixer | [`drone_3d/README.md`](drone_3d/README.md) | [`demo_dron.mp4`](drone_3d/demo_dron.mp4) |
-| `robot_balancin/` | Two-wheeled self-balancing robot with adjustable legs | LQR solved in the browser, with live closed-loop poles | [`robot_balancin/README.md`](robot_balancin/README.md) | [`demo_robot.mp4`](robot_balancin/demo_robot.mp4) |
-| `bombeo_mecanico/` | Sucker-rod pumping unit (oil & gas): beam pump, 1500 m elastic rod string, downhole pump with valves, live dynamometer cards | Pump-off controller (POC) with a variable-speed drive; counterbalance and gearbox torque | [`bombeo_mecanico/README.md`](bombeo_mecanico/README.md) | [`demo_bombeo.mp4`](bombeo_mecanico/demo_bombeo.mp4) |
-| `evaporador_jugo/` | 5-effect falling-film evaporator for apple juice concentrate (12 → 70 °Brix) with aroma recovery and thermal damage (HMF, colour) | PI control of product °Brix with the feed rate; steam economy, fouling and vacuum loss | [`evaporador_jugo/README.md`](evaporador_jugo/README.md) | [`demo_evaporador.mp4`](evaporador_jugo/demo_evaporador.mp4) |
+| Folder | Simulator | Control | Math |
+|---|---|---|---|
+| `drone_3d/` | 450 mm quadcopter, 6-DOF rigid-body dynamics, wind gusts, payload, motor failure | Cascaded PID (position → attitude) + X mixer | [`drone_3d/README.md`](drone_3d/README.md) |
+| `robot_balancin/` | Two-wheeled self-balancing robot with adjustable legs | LQR solved in the browser, with live closed-loop poles | [`robot_balancin/README.md`](robot_balancin/README.md) |
+| `bombeo_mecanico/` | Sucker-rod pumping unit (oil & gas): beam pump, 1500 m elastic rod string, downhole pump with valves, live dynamometer cards | Pump-off controller (POC) with a variable-speed drive; counterbalance and gearbox torque | [`bombeo_mecanico/README.md`](bombeo_mecanico/README.md) |
+| `evaporador_jugo/` | 5-effect falling-film evaporator for apple juice concentrate (12 → 70 °Brix) with aroma recovery and thermal damage (HMF, colour) | PI control of product °Brix with the feed rate; steam economy, fouling and vacuum loss | [`evaporador_jugo/README.md`](evaporador_jugo/README.md) |
 
 ## Also in this repository: machine-learning exercises
 
 Two industrial ML exercises built on top of the simulators. Each one has its own folder, a dataset generator with
-phenomenology checks, an executed training notebook, an exported model running live in the browser, a recorded demo
+phenomenology checks, an executed training notebook, an exported model running live in the browser, a guided demo
 and a README with the step-by-step of how the same project is done in a real plant.
 
-| Folder | Industrial problem | ML approach | Key result | Video |
-|---|---|---|---|---|
-| `ml_cartas_dinamometricas/` | Automatic diagnosis of sucker-rod pump faults from downhole dynamometer cards (7 classes) | Gradient boosting on normalized card shape + physical features; compared with engineer rules, MLP and surface cards | 98.7 % accuracy, 96.7 % on unseen out-of-range wells (rules: 50 %; surface card: 34 %) | [`demo_clasificador.mp4`](ml_cartas_dinamometricas/demo_clasificador.mp4) |
-| `ml_sensor_virtual_evaporador/` | Soft sensor for concentrate °Brix (refractometer backup) and HMF/colour between lab analyses | Sign-constrained linear model with physics features (BPE, mass balance), chosen by grouped cross-validation; gray-box Arrhenius model calibrated with 120 lab samples | °Brix MAE 1.34 on an unseen step test (naive 6.45) with sign-constrained physics; HMF R² 0.93 recovering the kinetic constant | [`demo_sensor_virtual.mp4`](ml_sensor_virtual_evaporador/demo_sensor_virtual.mp4) |
+| Folder | Industrial problem | ML approach | Key result |
+|---|---|---|---|
+| `ml_cartas_dinamometricas/` | Automatic diagnosis of sucker-rod pump faults from downhole dynamometer cards (7 classes) | Gradient boosting on normalized card shape + physical features; compared with engineer rules, MLP and surface cards | 98.7 % accuracy, 96.7 % on unseen out-of-range wells (rules: 50 %; surface card: 34 %) |
+| `ml_sensor_virtual_evaporador/` | Soft sensor for concentrate °Brix (refractometer backup) and HMF/colour between lab analyses | Sign-constrained linear model with physics features (BPE, mass balance), chosen by grouped cross-validation; gray-box Arrhenius model calibrated with 120 lab samples | °Brix MAE 1.34 on an unseen step test (naive 6.45) with sign-constrained physics; HMF R² 0.93 recovering the kinetic constant |
 
 ## How to Use
 
