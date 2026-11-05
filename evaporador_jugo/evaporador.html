@@ -352,7 +352,7 @@ function chain(P,S,Q1,UA,be){
 function energy(P,S){
   const foulK=[0.6,0.7,0.8,0.9,1.0]; // el ensuciamiento pesa más en los efectos concentrados
   // U cae fuerte con la viscosidad cerca de 80 °Brix: la evaporación se autolimita de forma suave (sin topes duros)
-  const visc=x=>1/(1+Math.exp((x-X_MAX+0.02)/0.012));
+  const visc=x=>1/(1+Math.exp((x-X_MAX-0.03)/0.03));
   const UA=P.UA.map((u,i)=>u*(1-P.foul*foulK[i])*visc(S.x[i]));
   const be=S.x.map(v=>bpe(v*100));
   let lo=0, hi=UA[0]*(P.Ts-P.Tcw), r=null;
@@ -383,6 +383,11 @@ function step(P,S,dt){
     S.I=Math.max(P.Fmin-S.Fbias,Math.min(P.Fmax-S.Fbias,S.I+P.Kp/P.Ti*e*dt));
     const Fc=S.Fbias+P.Kp*e+S.I;
     S.F=Math.min(P.Fmax,Math.max(P.Fmin,Fc)); } else { S.F=P.F; }
+  // Enclavamiento de °Brix alto (independiente del control, activo también en manual): si el concentrado
+  // supera 76 °Brix se fuerza más alimentación, como en las plantas reales, para no quemar el producto.
+  S.ovr=S.ovr||0; const B5=S.x[NE-1]*100;
+  S.ovr=B5>76?Math.min(P.Fmax,S.ovr+0.03*(B5-76)*dt):Math.max(0,S.ovr-0.002*dt);
+  if(S.ovr>0) S.F=Math.min(P.Fmax,S.F+S.ovr);
   // Producto: tiempo en tanque (enfriado o caliente)
   const Tt=P.tankCool?P.tankT:S.T[NE-1];
   const tt=P.tankHours*3600;
