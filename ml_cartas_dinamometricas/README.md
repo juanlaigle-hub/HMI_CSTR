@@ -8,7 +8,7 @@ probabilidad para cada clase.
 Este ejercicio es independiente: no modifica el simulador de `bombeo_mecanico/`. Usa una **copia de su núcleo
 físico** para generar los datos (`datos/simulador_bombeo.js`).
 
-**Video de la demo:** [`demo_clasificador.mp4`](demo_clasificador.mp4).
+**Video de la demo:** [`demo_clasificador.mp4`](demo_clasificador.mp4) (170 s).
 **Notebook ejecutado:** [`notebook/entrenamiento_clasificador.ipynb`](notebook/entrenamiento_clasificador.ipynb), que se puede ver en GitHub con todos sus gráficos.
 
 ## Resultados
