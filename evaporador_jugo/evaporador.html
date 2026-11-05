@@ -342,15 +342,8 @@ function chain(P,S,Q1,UA,be){
   for(let i=0;i<NE;i++){
     Q[i]=i===0?Q1:V[i-1]*LAMBDA;
     T[i]=Tc-Q[i]/UA[i];
-    let sens=Lprev*CP*(Tprev-T[i]);
-    // Límite físico: un efecto no puede evaporar más agua que la necesaria para llevar el jugo a X_MAX (80 °Brix).
-    // Si el calor disponible alcanzaría para más, la transferencia se reduce sola: el ΔT baja y el efecto se calienta.
-    const xin=i===0?P.Bf/100:S.x[i-1], Vmax=Math.max(0,Lprev*(1-xin/X_MAX));
-    if((Q[i]+sens)/LAMBDA>Vmax){
-      const k=Lprev*CP/UA[i]; T[i]=Math.min(Tc,(Tc-(Vmax*LAMBDA-Lprev*CP*Tprev)/UA[i])/(1+k));
-      Q[i]=UA[i]*(Tc-T[i]); sens=Lprev*CP*(Tprev-T[i]);
-    }
-    V[i]=Math.max(0,Math.min(Lprev*0.97,Vmax,(Q[i]+sens)/LAMBDA));
+    const sens=Lprev*CP*(Tprev-T[i]);
+    V[i]=Math.max(0,Math.min(Lprev*0.97,(Q[i]+sens)/LAMBDA));
     L[i]=Lprev-V[i]; Tv[i]=T[i]-be[i]; Tc=Tv[i]; Tprev=T[i]; Lprev=L[i];
   }
   const res=V[NE-1]*LAMBDA-P.UAc*(Tv[NE-1]-P.Tcw);
@@ -358,14 +351,12 @@ function chain(P,S,Q1,UA,be){
 }
 function energy(P,S){
   const foulK=[0.6,0.7,0.8,0.9,1.0]; // el ensuciamiento pesa más en los efectos concentrados
-  const UA=P.UA.map((u,i)=>u*(1-P.foul*foulK[i]));
+  // U cae fuerte con la viscosidad cerca de 80 °Brix: la evaporación se autolimita de forma suave (sin topes duros)
+  const visc=x=>1/(1+Math.exp((x-X_MAX+0.02)/0.012));
+  const UA=P.UA.map((u,i)=>u*(1-P.foul*foulK[i])*visc(S.x[i]));
   const be=S.x.map(v=>bpe(v*100));
-  // Con el límite de evaporación, el residuo del condensador puede tener dos raíces: la física (la de menor Q1)
-  // y otra con el 1er efecto evaporando todo y los demás secos. Se recorre Q1 de menor a mayor hasta el primer
-  // cambio de signo y recién ahí se aplica la bisección.
-  const Qtop=UA[0]*(P.Ts-P.Tcw), NB=40; let lo=0, hi=Qtop, r=null;
-  for(let k=1;k<=NB;k++){ const q=Qtop*k/NB; if(chain(P,S,q,UA,be).res>0){ lo=Qtop*(k-1)/NB; hi=q; break; } }
-  for(let it=0;it<40;it++){ const m=(lo+hi)/2; r=chain(P,S,m,UA,be); if(r.res>0) hi=m; else lo=m; }
+  let lo=0, hi=UA[0]*(P.Ts-P.Tcw), r=null;
+  for(let it=0;it<60;it++){ const m=(lo+hi)/2; r=chain(P,S,m,UA,be); if(r.res>0) hi=m; else lo=m; }
   S.Q=r.Q; S.V=r.V; S.L=r.L; S.T=r.T; S.Tv=r.Tv; S.Pk=r.Tv.map(psat); S.UAe=UA; S.be=be;
   S.steam=r.Q[0]/2240; S.Qc=r.V[NE-1]*LAMBDA; S.Pc=psat(r.Tv[NE-1]);
 }
