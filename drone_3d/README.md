@@ -19,7 +19,7 @@ El botón **"▶ Demo guiada"** reproduce una secuencia de 76 s con subtítulos.
 Experimentos sugeridos:
 
 1. **Acción integral:** con 0,8 kg de carga el dron baja al principio y el término $K_i\int e\,dt$ recupera la altura en unos segundos. Con $K_i = 0$ queda un error permanente.
-2. **Amortiguamiento:** si $K_{d,\eta}$ baja de 8, entonces $\zeta < 0{,}3$ y el dron oscila. Si sube mucho, responde lento.
+2. **Amortiguamiento y retardo del motor:** con $K_{d,\eta}$ = 11 el dron oscila varias veces después de un empujón. Por debajo de $\tau_m K_{p,\eta} \approx 6{,}3$ el lazo es inestable: el dron se da vuelta, choca y los motores se desarman. Si $K_{d,\eta}$ sube mucho, responde lento.
 3. **Separación de lazos:** con $K_{p,\eta}$ bajo y $K_p$ horizontal alto, el lazo interno deja de ser más rápido que el externo y la posición se vuelve inestable.
 4. **Avería de motor:** con M3 al 60 %, el mezclador pide más a M3 hasta saturarlo y los demás motores compensan. Las barras de los motores lo muestran.
 5. **Viento con ráfagas:** con 10 m/s y 60 % de turbulencia, el dron se inclina contra el viento y el integral horizontal compensa el arrastre medio.
@@ -86,7 +86,9 @@ T_i^{\text{cmd}} = \frac{T}{4} + \frac{a_{2i}}{4d^2}\,\tau_\phi + \frac{a_{3i}}{
 \qquad \Omega_i^{\text{cmd}} = \sqrt{T_i^{\text{cmd}}/k_T}
 $$
 
-donde $a_{ji}$ son los elementos de la matriz. Cada $T_i^{\text{cmd}}$ se limita al rango $[0, T_{\max}]$. Si alguno llega al tope, el estado pasa a "Motores saturados".
+donde $a_{ji}$ son los elementos de la matriz. Si algún $T_i^{\text{cmd}}$ sale del rango $[0, T_{\max}]$, primero se corre el empuje colectivo y, si no alcanza, se reducen los torques en la misma proporción. Así se prioriza el control de actitud sobre la altura, como hacen los controladores de vuelo reales. En ese caso el estado pasa a "Motores saturados".
+
+Si el dron toca el suelo inclinado más de 50° o a más de 4 m/s, se considera un choque: los motores se desarman, el dron queda apoyado y aparece el botón "Reiniciar vuelo".
 
 ## 4. Dinámica traslacional (Newton)
 
@@ -117,7 +119,7 @@ $$
 \begin{bmatrix} p\\ q\\ r\end{bmatrix}
 $$
 
-con $t = \tan$. La matriz es singular en $\theta = \pm 90°$. El controlador limita la inclinación a 35°, así que nunca se llega ahí.
+con $t = \tan$. La matriz es singular en $\theta = \pm 90°$. Por eso la simulación no integra los ángulos: integra la matriz de rotación, $\dot R = R\,[\boldsymbol\omega]_\times$, la reortonormaliza en cada paso y obtiene los ángulos de $R$. Así el dron puede darse vuelta sin que los números pierdan sentido.
 
 ## 6. Control en cascada
 
@@ -169,7 +171,16 @@ $$
 \omega_n = \sqrt{K_{p,\eta}}, \qquad \zeta = \frac{K_{d,\eta}}{2\sqrt{K_{p,\eta}}}
 $$
 
-Con los valores por defecto ($K_{p,\eta}$ = 180, $K_{d,\eta}$ = 22) queda $\omega_n \approx$ 13,4 rad/s y $\zeta \approx$ 0,82. El lazo de posición horizontal tiene $\omega_n \approx \sqrt{1{,}8} \approx$ 1,3 rad/s. El lazo interno es unas 10 veces más rápido, que es lo que hace funcionar la cascada.
+Con los valores por defecto ($K_{p,\eta}$ = 180, $K_{d,\eta}$ = 22) queda $\omega_n \approx$ 13,4 rad/s y $\zeta \approx$ 0,82.
+
+Los motores no responden al instante (τ<sub>m</sub> = 35 ms). Con ese retardo la ecuación del error pasa a ser de tercer orden:
+
+$$
+\tau_m\,\dddot e + \ddot e + K_{d,\eta}\,\dot e + K_{p,\eta}\,e = 0
+\quad\Rightarrow\quad \text{estable si } K_{d,\eta} > \tau_m\,K_{p,\eta}
+$$
+
+(criterio de Routh–Hurwitz). Con $K_{p,\eta}$ = 180, el mínimo es $K_{d,\eta} \approx$ 6,3. El retardo también resta amortiguamiento: con los valores por defecto el $\zeta$ efectivo es 0,40, y con $K_{d,\eta}$ = 11 baja a 0,15. El panel muestra el $\zeta$ efectivo, calculado con las raíces de esta ecuación. El lazo de posición horizontal tiene $\omega_n \approx \sqrt{1{,}8} \approx$ 1,3 rad/s. El lazo interno es unas 10 veces más rápido, que es lo que hace funcionar la cascada.
 
 ### 6.3 Rumbo
 
@@ -211,7 +222,7 @@ En vuelo estacionario cada motor gira a $\Omega_h = \sqrt{\hat m g / 4k_T} \appr
 
 ## 9. Integración numérica
 
-Euler semi-implícito con paso fijo de 2 ms (500 pasos por segundo de simulación). Primero se actualizan las velocidades y después las posiciones con esas velocidades nuevas. Cuando la simulación se pausa o va en cámara lenta, también se pausa o se frena el giro visible de las hélices.
+Euler semi-implícito con paso fijo de 2 ms (500 pasos por segundo de simulación). Primero se actualizan las velocidades y después las posiciones con esas velocidades nuevas. La orientación se integra con la matriz de rotación y se reortonormaliza (Gram–Schmidt) en cada paso. Cuando la simulación se pausa o va en cámara lenta, también se pausa o se frena el giro visible de las hélices.
 
 ## Archivos
 

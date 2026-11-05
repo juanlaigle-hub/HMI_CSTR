@@ -55,6 +55,7 @@ header.bar{display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px}
 .chip i{width:8px; height:8px; border-radius:50%; background:var(--muted)}
 .chip[data-s="fly"]{border-color:var(--ok); color:var(--ok)} .chip[data-s="fly"] i{background:var(--ok)}
 .chip[data-s="sat"]{border-color:var(--warn); color:var(--warn)} .chip[data-s="sat"] i{background:var(--warn)}
+.chip[data-s="crash"]{border-color:#c0392b; color:#c0392b} .chip[data-s="crash"] i{background:#c0392b}
 .clock{font:.82rem var(--f-mono); color:var(--muted); font-variant-numeric:tabular-nums}
 .seg{display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; background:var(--panel)}
 .seg button{font:500 .8rem var(--f-body); border:0; background:transparent; color:var(--fg); padding:6px 10px; cursor:pointer}
@@ -230,6 +231,7 @@ main.hl-wind .math .hl-wind, main.hl-mass .math .hl-mass, main.hl-gain .math .hl
         <div class="sl" data-eq="trans,pos" data-hl="mass"><div class="row"><label for="pL">Carga útil (el controlador no la conoce)</label><output id="vPL"></output><button class="fx" data-card="eq-trans" title="Ver ecuación">f(x)</button></div><input type="range" id="pL" min="0" max="1.2" step="0.05" value="0"></div>
         <div class="sl" data-eq="motor,mix" data-hl="motor"><div class="row"><label for="mH">Eficiencia del motor M3</label><output id="vMH"></output><button class="fx" data-card="eq-motor" title="Ver ecuación">f(x)</button></div><input type="range" id="mH" min="0.5" max="1" step="0.01" value="1"></div>
         <button class="act" id="kick" data-eq="rot">Dar un empujón al dron</button>
+        <button class="act" id="restart" hidden>Reiniciar vuelo</button>
         <p class="note">Con carga extra el dron baja al principio: el término integral K<sub>i</sub>∫e dt va acumulando el empuje que falta.</p>
       </div>
 
@@ -283,8 +285,9 @@ main.hl-wind .math .hl-wind, main.hl-mass .math .hl-mass, main.hl-gain .math .hl
       <h4>2 · Control de actitud (lazo interno) <small>PD</small></h4>
       <div class="tex">\[ \boldsymbol\tau_{\text{cmd}} = I\left[\class{hl-att}{K_{p,\eta}}\,(\boldsymbol\eta_d - \boldsymbol\eta) - \class{hl-att}{K_{d,\eta}}\,\boldsymbol\omega\right] \]
       \[ \ddot e + \class{hl-att}{K_{d,\eta}}\,\dot e + \class{hl-att}{K_{p,\eta}}\,e = 0 \]
-      \[ \Rightarrow\quad \omega_n = \sqrt{K_{p,\eta}}, \qquad \zeta = \frac{K_{d,\eta}}{2\sqrt{K_{p,\eta}}} \]</div>
-      <p>η = (φ, θ, ψ) son los ángulos de alabeo, cabeceo y guiñada. El lazo interno tiene que ser unas 5–10 veces más rápido que el externo. Si ζ &lt; 0,5 el dron oscila; si ω<sub>n</sub> es bajo, las inclinaciones llegan tarde y la posición se vuelve inestable.</p>
+      \[ \Rightarrow\quad \omega_n = \sqrt{K_{p,\eta}}, \qquad \zeta = \frac{K_{d,\eta}}{2\sqrt{K_{p,\eta}}} \]
+      \[ \text{con el retardo del motor: } \tau_m\,\dddot e + \ddot e + \class{hl-att}{K_{d,\eta}}\,\dot e + \class{hl-att}{K_{p,\eta}}\,e = 0 \;\Rightarrow\; \text{estable si } \class{hl-att}{K_{d,\eta}} > \tau_m\,\class{hl-att}{K_{p,\eta}} \]</div>
+      <p>η = (φ, θ, ψ) son los ángulos de alabeo, cabeceo y guiñada. El lazo interno tiene que ser unas 5–10 veces más rápido que el externo. Si ζ &lt; 0,5 el dron oscila; si ω<sub>n</sub> es bajo, las inclinaciones llegan tarde y la posición se vuelve inestable. Los motores tardan τ<sub>m</sub> = 35 ms en responder: ese retardo resta amortiguamiento, y por debajo de K<sub>d,η</sub> = τ<sub>m</sub>K<sub>p,η</sub> el lazo se vuelve inestable (criterio de Routh–Hurwitz). Si el dron toca el suelo inclinado más de 50° o a más de 4 m/s, se considera un choque y los motores se desarman.</p>
       <div class="live" id="lv-att"></div>
     </section>
 
@@ -351,7 +354,7 @@ const ENV={wind:0,wdir:270,turb:0,payload:0,health:[1,1,1,1]};
 const hover=Math.sqrt(M0*g/4/KT);
 let X; // estado completo
 function resetState(z){
-  X={p:[0,0,z],v:[0,0,0],eta:[0,0,0],w:[0,0,0],Om:[hover,hover,hover,hover],I:[0,0,0],t:0,gust:[0,0,0],
+  X={p:[0,0,z],v:[0,0,0],eta:[0,0,0],w:[0,0,0],Om:[hover,hover,hover,hover],I:[0,0,0],t:0,gust:[0,0,0],Rb:ident(),crashed:false,
      ctl:{e:[0,0,0],a:[0,0,0],Tc:M0*g,phid:0,thd:0,psid:0,tau:[0,0,0],Tcmd:[0,0,0,0],sat:false},
      F:{T:M0*g,Ti:[0,0,0,0],acc:[0,0,0],aero:[0,0,0],R:ident(),wd:[0,0,0],etad:[0,0,0]}};
 }
@@ -391,15 +394,32 @@ function rotMat(phi,th,psi){
   return [[cp*ct, cp*st*sf-sp*cf, cp*st*cf+sp*sf],[sp*ct, sp*st*sf+cp*cf, sp*st*cf-cp*sf],[-st, ct*sf, ct*cf]];
 }
 let gustState=[0,0,0];
+function eulerFromR(R){ return [Math.atan2(R[2][1],R[2][2]), -Math.asin(clamp(R[2][0],-1,1)), Math.atan2(R[1][0],R[0][0])]; }
+function orthonormalize(R){
+  // Gram–Schmidt sobre las columnas para que R siga siendo una rotación
+  const c0=[R[0][0],R[1][0],R[2][0]]; let n=Math.hypot(...c0); c0.forEach((_,i)=>c0[i]/=n);
+  const c1=[R[0][1],R[1][1],R[2][1]]; const d=c0[0]*c1[0]+c0[1]*c1[1]+c0[2]*c1[2]; for(let i=0;i<3;i++) c1[i]-=d*c0[i]; n=Math.hypot(...c1); c1.forEach((_,i)=>c1[i]/=n);
+  const c2=[c0[1]*c1[2]-c0[2]*c1[1], c0[2]*c1[0]-c0[0]*c1[2], c0[0]*c1[1]-c0[1]*c1[0]];
+  for(let i=0;i<3;i++){ R[i][0]=c0[i]; R[i][1]=c1[i]; R[i][2]=c2[i]; }
+}
+function crashedStep(dt){
+  // Tras un choque el controlador desarma los motores: dejan de empujar y el dron queda quieto en el suelo.
+  for(let i=0;i<4;i++) X.Om[i]*=Math.exp(-dt/0.25);
+  X.v=[0,0,0]; X.w=[0,0,0]; X.p[2]=0; X.I=[0,0,0];
+  const c=X.ctl; c.Tcmd=[0,0,0,0]; c.tau=[0,0,0]; c.Tc=0; c.sat=false;
+  Object.assign(X.F,{T:0,Ti:[0,0,0,0],tb:[0,0,0],acc:[0,0,0],aero:[0,0,0],R:X.Rb,wd:[0,0,0],etad:[0,0,0],m:M0+ENV.payload,landed:true});
+}
 function step(dt){
   X.t+=dt; mt+=dt; updateRef(dt);
+  if(X.crashed){ crashedStep(dt); return; }
+  X.eta=eulerFromR(X.Rb);
   const m=M0+ENV.payload; const [phi,th,psi]=X.eta;
   const onGround=X.p[2]<=0.0005;
   const landedIdle=mission==='land'&&rp[2]<=0.001&&X.p[2]<0.06;
 
   /* --- Control de posición (PID) --- */
   const c=X.ctl; const e=[rp[0]-X.p[0],rp[1]-X.p[1],rp[2]-X.p[2]];
-  if(!onGround&&!landedIdle){ X.I[0]=clamp(X.I[0]+e[0]*dt,-12,12); X.I[1]=clamp(X.I[1]+e[1]*dt,-12,12); X.I[2]=clamp(X.I[2]+e[2]*dt,-4,4); }
+  if(!onGround&&!landedIdle){ X.I[0]=clamp(X.I[0]+e[0]*dt,-12,12); X.I[1]=clamp(X.I[1]+e[1]*dt,-12,12); X.I[2]=clamp(X.I[2]+e[2]*dt,-8,8); }
   const ax=G.kpxy*e[0]+G.kixy*X.I[0]-G.kdxy*(X.v[0]-rv[0]);
   const ay=G.kpxy*e[1]+G.kixy*X.I[1]-G.kdxy*(X.v[1]-rv[1]);
   let az=G.kpz*e[2]+G.kiz*X.I[2]-G.kdz*(X.v[2]-rv[2]); az=clamp(az,-0.8*g,2*g);
@@ -421,8 +441,16 @@ function step(dt){
     Tc/4 + tau[0]/(4*D) + tau[1]/(4*D) - tau[2]/(4*C),
     Tc/4 + tau[0]/(4*D) - tau[1]/(4*D) + tau[2]/(4*C),
     Tc/4 - tau[0]/(4*D) + tau[1]/(4*D) + tau[2]/(4*C)];
+  // Desaturación: si algún motor queda fuera de [0, T_max] se mueve el empuje colectivo
+  // y, si no alcanza, se escalan los torques. Así se conserva el control de actitud.
   let sat=false;
-  for(let i=0;i<4;i++){ if(Tcmd[i]>TMAX||(Tcmd[i]<0&&!landedIdle)) sat=true; Tcmd[i]=clamp(Tcmd[i],0,TMAX); }
+  if(!landedIdle){
+    const base=Tc/4, dif=Tcmd.map(x=>x-base); let lo=Math.min(...dif), hi=Math.max(...dif);
+    let k=1; if(hi-lo>TMAX){ k=TMAX/(hi-lo); lo*=k; hi*=k; sat=true; }
+    const col=clamp(base,-lo,TMAX-hi); if(Math.abs(col-base)>1e-9) sat=true;
+    for(let i=0;i<4;i++) Tcmd[i]=col+k*dif[i];
+  }
+  for(let i=0;i<4;i++) Tcmd[i]=clamp(Tcmd[i],0,TMAX);
 
   /* --- Motores --- */
   const Ti=[0,0,0,0], Qi=[0,0,0,0];
@@ -438,7 +466,7 @@ function step(dt){
   const wv=[ENV.wind*Math.cos(wdirTo)+gustState[0], ENV.wind*Math.sin(wdirTo)+gustState[1], gustState[2]];
 
   /* --- Traslación: m p'' = R[0,0,T] − m g e_z − k_d (p' − w) --- */
-  const R=rotMat(phi,th,psi);
+  const R=X.Rb;
   const aero=[-KD_AIR*(X.v[0]-wv[0]),-KD_AIR*(X.v[1]-wv[1]),-KD_AIR*(X.v[2]-wv[2])];
   const acc=[(R[0][2]*T+aero[0])/m,(R[1][2]*T+aero[1])/m,(R[2][2]*T+aero[2])/m-g];
   for(let i=0;i<3;i++){ X.v[i]+=acc[i]*dt; X.p[i]+=X.v[i]*dt; }
@@ -448,17 +476,30 @@ function step(dt){
   const cr=[q*Iw[2]-r*Iw[1], r*Iw[0]-p*Iw[2], p*Iw[1]-q*Iw[0]];
   const wd=[(tb[0]-cr[0]-KR*p)/IX,(tb[1]-cr[1]-KR*q)/IY,(tb[2]-cr[2]-KR*r)/IZ];
   for(let i=0;i<3;i++) X.w[i]+=wd[i]*dt;
-  const cf=Math.cos(phi),sf=Math.sin(phi),ct=Math.cos(th),tt=Math.tan(th);
-  const etad=[X.w[0]+sf*tt*X.w[1]+cf*tt*X.w[2], cf*X.w[1]-sf*X.w[2], (sf*X.w[1]+cf*X.w[2])/ct];
-  for(let i=0;i<3;i++) X.eta[i]+=etad[i]*dt;
-  X.eta[2]=wrap(X.eta[2]);
+  const cf=Math.cos(phi),sf=Math.sin(phi),ct=Math.cos(th),tt=Math.tan(th), ctg=Math.sign(ct||1)*Math.max(Math.abs(ct),1e-3);
+  const etad=[X.w[0]+sf*tt*X.w[1]+cf*tt*X.w[2], cf*X.w[1]-sf*X.w[2], (sf*X.w[1]+cf*X.w[2])/ctg];
+  { // Ṙ = R [ω]×, integrado con la matriz completa
+    const [wx,wy,wz]=X.w, Rn=R.map(r=>r.slice());
+    for(let i=0;i<3;i++){ const a=R[i]; Rn[i][0]+=(a[1]*wz-a[2]*wy)*dt; Rn[i][1]+=(a[2]*wx-a[0]*wz)*dt; Rn[i][2]+=(a[0]*wy-a[1]*wx)*dt; }
+    orthonormalize(Rn); X.Rb=Rn; X.eta=eulerFromR(Rn);
+  }
 
   /* --- Suelo --- */
-  if(X.p[2]<=0){ X.p[2]=0; if(X.v[2]<0) X.v[2]=0; const f=Math.exp(-10*dt); X.v[0]*=f; X.v[1]*=f;
-    if(T<m*g*1.02){ X.eta[0]*=Math.exp(-12*dt); X.eta[1]*=Math.exp(-12*dt); X.w[0]*=0.9; X.w[1]*=0.9; X.w[2]*=0.95; } }
+  if(X.p[2]<=0){
+    const up=X.Rb[2][2], vimp=-X.v[2];
+    X.p[2]=0; if(X.v[2]<0) X.v[2]=0; const f=Math.exp(-10*dt); X.v[0]*=f; X.v[1]*=f;
+    if(up<Math.cos(50*Math.PI/180) || vimp>4){
+      // Choque: toca el suelo muy inclinado o demasiado rápido. Queda apoyado sobre el tren o dado vuelta.
+      X.crashed=true; const [, ,ps]=X.eta; X.Rb=rotMat(up<0?Math.PI:0,0,ps); X.eta=eulerFromR(X.Rb);
+      X.w=[0,0,0]; X.v=[0,0,0];
+    } else if(T<m*g*1.02){
+      const e2=eulerFromR(X.Rb), k=Math.exp(-12*dt); X.Rb=rotMat(e2[0]*k,e2[1]*k,e2[2]); X.eta=eulerFromR(X.Rb);
+      X.w[0]*=0.9; X.w[1]*=0.9; X.w[2]*=0.95;
+    }
+  }
 
   Object.assign(c,{e,a:[axh,ayh,az],Tc,phid,thd,psid,tau,Tcmd,sat,af,al});
-  Object.assign(X.F,{T,Ti,tb,acc,aero,R,wd,etad,wv,m,landed:landedIdle||(onGround&&T<m*g)});
+  Object.assign(X.F,{T,Ti,tb,acc,aero,R:X.Rb,wd,etad,wv,m,landed:landedIdle||(onGround&&T<m*g)});
 }
 function randn(){let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
 
@@ -647,10 +688,20 @@ bind('pL','vPL',v=>v.toFixed(2)+' kg',v=>ENV.payload=v);
 bind('mH','vMH',v=>(v*100).toFixed(0)+' %',v=>ENV.health[2]=v);
 const gainEls={};
 ['kpxy','kixy','kdxy','kpz','kiz','kdz','kpa','kda'].forEach(k=>{gainEls[k]=bind(k,'v'+k,v=>k==='kpa'?v.toFixed(0):v.toFixed(k==='kixy'||k==='kiz'?2:1),v=>{G[k]=v; updWn();});});
-function updWn(){const wn=Math.sqrt(G.kpa), z=G.kda/(2*wn); $('wn').textContent=wn.toFixed(1)+' rad/s'; $('zeta').textContent=z.toFixed(2); $('resp').textContent=z<0.4?'muy oscilante':z<0.7?'subamortiguada':z<1.05?'bien amortiguada':'sobreamortiguada';}
+function zetaEff(kp,kd){
+  // Raíces de τ_m s³ + s² + K_d s + K_p = 0 (lazo de actitud con el retardo del motor)
+  const t=TAU_M; let r=-1/t; for(let i=0;i<60;i++){ const fv=((t*r+1)*r+kd)*r+kp, df=(3*t*r+2)*r+kd; r-=fv/df; }
+  const b=1+t*r, c=kd+b*r, disc=b*b-4*t*c;
+  if(disc>=0) return (r<0 && b>0 && c>0)?1:-1;      // raíces reales
+  return b/(2*Math.sqrt(t*c));                       // par complejo dominante
+}
+function updWn(){const wn=Math.sqrt(G.kpa), z=zetaEff(G.kpa,G.kda); $('wn').textContent=wn.toFixed(1)+' rad/s'; $('zeta').textContent=z>=1?'≥ 1':z.toFixed(2);
+  $('resp').textContent=G.kda<=TAU_M*G.kpa?'inestable (K_d < τ_m·K_p)':z<0.1?'casi inestable':z<0.3?'muy oscilante':z<0.6?'subamortiguada':'bien amortiguada';}
 updWn();
 $('resetGains').addEventListener('click',()=>{Object.entries(DEF_GAINS).forEach(([k,v])=>{gainEls[k].value=v; gainEls[k].dispatchEvent(new Event('input'));});});
-$('kick').addEventListener('click',()=>{const a=Math.random()*Math.PI*2; X.v[0]+=1.6*Math.cos(a); X.v[1]+=1.6*Math.sin(a); X.w[0]+=(Math.random()-.5)*7; X.w[1]+=(Math.random()-.5)*7; X.w[2]+=(Math.random()-.5)*3; highlight('rot,att');});
+$('kick').addEventListener('click',()=>{if(X.crashed) return; const a=Math.random()*Math.PI*2, b=Math.random()*Math.PI*2; X.v[0]+=1.6*Math.cos(a); X.v[1]+=1.6*Math.sin(a); X.w[0]+=3*Math.cos(b); X.w[1]+=3*Math.sin(b); X.w[2]+=(Math.random()<.5?-1:1); highlight('rot,att');});
+function restartFlight(){ resetState(Math.max(rp[2],0.5)); if(mission==='land') setMission('hold'); X.I=[0,0,0]; }
+$('restart').addEventListener('click',restartFlight);
 
 document.querySelectorAll('.mbtn').forEach(b=>b.addEventListener('click',()=>{
   const m=b.dataset.m;
@@ -699,7 +750,7 @@ function updateMath(force){
   const c=X.ctl, F=X.F;
   $('lv-pos').innerHTML=cells([['e',vec(c.e)+' m'],['∫e dt',vec(X.I)],['a_des',vec(c.a)+' m/s²'],['a_f, a_l',f(c.af||0)+', '+f(c.al||0)],['T_cmd',f(c.Tc)+' N'],['m̂ / m real',M0.toFixed(2)+' / '+F.m.toFixed(2)+' kg'],['φ_d',f(deg(c.phid),1)+'°'],['θ_d',f(deg(c.thd),1)+'°']]);
   const wn=Math.sqrt(G.kpa);
-  $('lv-att').innerHTML=cells([['η',vec(X.eta.map(deg),1)+'°'],['η_d',vec([c.phid,c.thd,c.psid].map(deg),1)+'°'],['ω',vec(X.w)+' rad/s'],['τ_cmd',vec(c.tau,3)+' N·m'],['ω_n',wn.toFixed(1)+' rad/s'],['ζ',(G.kda/(2*wn)).toFixed(2)]]);
+  $('lv-att').innerHTML=cells([['η',vec(X.eta.map(deg),1)+'°'],['η_d',vec([c.phid,c.thd,c.psid].map(deg),1)+'°'],['ω',vec(X.w)+' rad/s'],['τ_cmd',vec(c.tau,3)+' N·m'],['ω_n',wn.toFixed(1)+' rad/s'],['ζ (con τ_m)',(()=>{const z=zetaEff(G.kpa,G.kda); return z>=1?'≥ 1':z.toFixed(2);})()],['K_d mínimo',(TAU_M*G.kpa).toFixed(1)]]);
   $('lv-mix').innerHTML='<span>[T τ<sub>φ</sub> τ<sub>θ</sub> τ<sub>ψ</sub>]<sub>cmd</sub> '+mtx([[c.Tc],[c.tau[0]],[c.tau[1]],[c.tau[2]]],3)+'</span><span>→ T<sub>i,cmd</sub> '+mtx(c.Tcmd.map(x=>[x]),2)+'N</span><span>d = '+D.toFixed(4)+' m · c = '+C.toFixed(4)+' m'+(c.sat?' · <b class="flashtxt">saturado</b>':'')+'</span>';
   $('lv-motor').innerHTML=X.Om.map((o,i)=>'<span>M'+(i+1)+' Ω = <b>'+o.toFixed(0)+'</b> rad/s · T = <b>'+F.Ti[i].toFixed(2)+'</b> N'+(ENV.health[i]<1?' · h = <b class="flashtxt">'+ENV.health[i].toFixed(2)+'</b>':'')+'</span>').join('')+'<span>ΣT = <b>'+F.T.toFixed(2)+' N</b> · peso m·g = <b>'+(F.m*g).toFixed(2)+' N</b></span>';
   const thr=[F.R[0][2]*F.T,F.R[1][2]*F.T,F.R[2][2]*F.T];
@@ -768,7 +819,8 @@ function frame(dtFixed){
     const sp=Math.hypot(...X.v);
     $('hZ').textContent=X.p[2].toFixed(2)+' m'; $('hV').textContent=sp.toFixed(2)+' m/s'; $('hR').textContent=f(deg(X.eta[0]),1)+'°'; $('hP').textContent=f(deg(X.eta[1]),1)+'°'; $('hY').textContent=f(deg(X.eta[2]),0)+'°'; $('hT').textContent=X.F.T.toFixed(1)+' N';
     for(let i=0;i<4;i++){const el=$('m'+(i+1)); el.querySelector('.lvl').style.height=(X.Om[i]/OMAX*100).toFixed(0)+'%'; el.dataset.sat=X.Om[i]>OMAX*0.97?'1':'0';}
-    const st=$('state'); const landed=X.F.landed; st.dataset.s=landed?'':X.ctl.sat?'sat':'fly'; $('stateTxt').textContent=landed?'En tierra':X.ctl.sat?'Motores saturados':'En vuelo';
+    const st=$('state'); const landed=X.F.landed; st.dataset.s=X.crashed?'crash':landed?'':X.ctl.sat?'sat':'fly'; $('stateTxt').textContent=X.crashed?'Accidente · motores desarmados':landed?'En tierra':X.ctl.sat?'Motores saturados':'En vuelo';
+    $('restart').hidden=!X.crashed;
     $('clock').textContent='t = '+X.t.toFixed(1)+' s'; drawTrend();
   }
   if(mathAcc>0.15){mathAcc=0; updateMath();}
@@ -786,7 +838,7 @@ const DEMO=[
   {t:13, c:'Agrego 0,8 kg de carga que el controlador no conoce. El dron baja un poco y el término integral ∫e dt va compensando la masa que falta.', a:()=>{setSlider('pL',0.8); showCard('eq-trans'); highlight('','mass');}},
   {t:22, c:'Viento del oeste a 8 m/s: el arrastre −k<sub>d</sub>(ṗ − w) lo empuja y el dron se inclina contra el viento para quedarse en su lugar.', a:()=>{setSlider('wS',8); showCard('eq-trans'); highlight('','wind');}},
   {t:30, c:'¡Empujón! El lazo interno de actitud (PD) lo vuelve a nivelar en menos de un segundo.', a:()=>{$('kick').click(); showCard('eq-att');}},
-  {t:35, c:'Bajo K<sub>d,η</sub> de 22 a 6: el amortiguamiento ζ cae de 0,82 a 0,22.', a:()=>{setSlider('kda',6); showCard('eq-att');}},
+  {t:35, c:'Bajo K<sub>d,η</sub> de 22 a 11. Con el retardo de los motores, el amortiguamiento ζ cae de 0,40 a 0,15 (por debajo de K<sub>d</sub> = 6,3 sería inestable).', a:()=>{setSlider('kda',11); showCard('eq-att');}},
   {t:38, c:'Mismo empujón con poco amortiguamiento: ahora el dron oscila varias veces antes de estabilizarse.', a:()=>{$('kick').click();}},
   {t:45, c:'Restauro las ganancias de fábrica.', a:()=>{$('resetGains').click(); setSlider('wS',4);}},
   {t:48, c:'El motor M3 pierde el 40 % de eficiencia: el mezclador le pide más y el resto compensa. Mira las barras de los motores.', a:()=>{setSlider('mH',0.6); showCard('eq-mix');}},
