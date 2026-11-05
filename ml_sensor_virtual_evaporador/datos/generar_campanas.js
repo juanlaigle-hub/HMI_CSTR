@@ -30,14 +30,15 @@ for(let c=1;c<=NC+NENS;c++){
   const total=HRSc*3600, dt=0.5; let nextF=ensayo?1800:Infinity;
   if(ensayo){ P.auto=false; P.F=S.F; }
   for(let t=0;t<=total;t+=dt){
-    if(t>=nextTs){ P.Ts=U(100,114); nextTs=t+U(1.5,4)*3600; }
+    // en los ensayos el vapor se mantiene moderado para que los escalones no activen el enclavamiento de °Brix alto
+    if(t>=nextTs){ P.Ts=ensayo?U(102,106):U(100,114); nextTs=t+U(1.5,4)*3600; }
     if(t>=nextBf){ P.Bf=U(10.2,13.5); nextBf=t+U(2,6)*3600; }
     P.Tcw=Tcw0+4*Math.sin(2*Math.PI*t/86400+fase);
     P.foul=foulEnd*t/total;
     if(t>=nextTank){ tankOffUntil=t+U(1,3)*3600; nextTank=t+U(6,14)*3600; }
     P.tankCool=t>tankOffUntil;
     P.Bsp=spLow&&t>=spLow.t0&&t<spLow.t0+spLow.dur?spLow.v:70;
-    if(ensayo&&t>=nextF){ P.F=Math.min(26,Math.max(12,P.F*3.6+U(-4,4)))/3.6; nextF=t+U(20,40)*60; }
+    if(ensayo&&t>=nextF){ P.F=Math.min(25,Math.max(15,P.F*3.6+U(-4,4)))/3.6; nextF=t+U(20,40)*60; }
     E.step(P,S,dt);
     if(t%60===0){
       const r=v=>v.toFixed(3);

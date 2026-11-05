@@ -1,6 +1,6 @@
 // Copia del núcleo de evaporador_jugo/evaporador.html, usada para generar los datos de entrenamiento.
 // Evaporador de 5 efectos de película descendente para jugo de manzana: núcleo físico.
-const NE=5, LAMBDA=2330, CP=3.8; // kJ/kg, kJ/(kg·K) (cp medio del jugo)
+const NE=5, LAMBDA=2330, CP=3.8, X_MAX=0.80; // kJ/kg, kJ/(kg·K) (cp medio del jugo)
 function tsat(P){ // °C, P en kPa (Antoine para agua, 1–200 kPa)
   const mmHg=P*7.50062; return 1730.63/(8.07131-Math.log10(mmHg))-233.426; }
 function psat(T){ return Math.pow(10,8.07131-1730.63/(233.426+T))/7.50062; } // kPa
@@ -9,7 +9,8 @@ function makePlant(o){
   const P=Object.assign({
     Ts:105, Tcw:28, Bf:12, Tf:60, F:20000/3600, // vapor vivo °C, agua de condensador °C, °Brix y T alimentación, kg/s
     UA:[230,220,200,170,120], UAc:300, foul:0, hold:[300,250,200,150,120], // kW/K, kg
-    Bsp:70, auto:true, Kp:0.07, Ti:150, Fmin:6000/3600, Fmax:28000/3600,
+    Bsp:70, auto:true, Kp:0.07, Ti:150, Fmin:10000/3600, // caudal mínimo de mojado de los tubos de película descendente
+    Fmax:28000/3600,
     tankCool:true, tankT:10, tankHours:2,
     // cinética de daño térmico (por kg de sólidos solubles)
     kH:0.18, EaH:130e3, kC:0.0011, EaC:100e3, Tref:90,
@@ -40,7 +41,9 @@ function chain(P,S,Q1,UA,be){
 }
 function energy(P,S){
   const foulK=[0.6,0.7,0.8,0.9,1.0]; // el ensuciamiento pesa más en los efectos concentrados
-  const UA=P.UA.map((u,i)=>u*(1-P.foul*foulK[i]));
+  // U cae fuerte con la viscosidad cerca de 80 °Brix: la evaporación se autolimita de forma suave (sin topes duros)
+  const visc=x=>1/(1+Math.exp((x-X_MAX-0.03)/0.03));
+  const UA=P.UA.map((u,i)=>u*(1-P.foul*foulK[i])*visc(S.x[i]));
   const be=S.x.map(v=>bpe(v*100));
   let lo=0, hi=UA[0]*(P.Ts-P.Tcw), r=null;
   for(let it=0;it<60;it++){ const m=(lo+hi)/2; r=chain(P,S,m,UA,be); if(r.res>0) hi=m; else lo=m; }
@@ -70,6 +73,11 @@ function step(P,S,dt){
     S.I=Math.max(P.Fmin-S.Fbias,Math.min(P.Fmax-S.Fbias,S.I+P.Kp/P.Ti*e*dt));
     const Fc=S.Fbias+P.Kp*e+S.I;
     S.F=Math.min(P.Fmax,Math.max(P.Fmin,Fc)); } else { S.F=P.F; }
+  // Enclavamiento de °Brix alto (independiente del control, activo también en manual): si el concentrado
+  // supera 76 °Brix se fuerza más alimentación, como en las plantas reales, para no quemar el producto.
+  S.ovr=S.ovr||0; const B5=S.x[NE-1]*100;
+  S.ovr=B5>76?Math.min(P.Fmax,S.ovr+0.03*(B5-76)*dt):Math.max(0,S.ovr-0.002*dt);
+  if(S.ovr>0) S.F=Math.min(P.Fmax,S.F+S.ovr);
   // Producto: tiempo en tanque (enfriado o caliente)
   const Tt=P.tankCool?P.tankT:S.T[NE-1];
   const tt=P.tankHours*3600;
