@@ -122,7 +122,7 @@ $$
 e = B_{\text{med}} - B_{\text{sp}}, \qquad F = \bar F + K_p\,e + \frac{K_p}{T_i}\int e\,dt
 $$
 
-Los parámetros son $K_p$ = 0,25 t/h por °Brix y $T_i$ = 2,5 min. La integral está acotada al rango de la bomba (6–28 t/h), como protección contra el windup. La sintonía se eligió comparando el error absoluto integrado frente a ensuciamiento y pérdida de vacío: con $K_p$ = 0,07 kg/s y $T_i$ = 150 s, el °Brix vuelve a la consigna en 5 a 10 minutos de planta.
+Los parámetros son $K_p$ = 0,25 t/h por °Brix y $T_i$ = 2,5 min. La integral está acotada al rango de la bomba (10–28 t/h), como protección contra el windup. La sintonía se eligió comparando el error absoluto integrado frente a ensuciamiento y pérdida de vacío: con $K_p$ = 0,07 kg/s y $T_i$ = 150 s, el °Brix vuelve a la consigna en 5 a 10 minutos de planta.
 
 ## 6. Daño térmico: HMF y color
 
