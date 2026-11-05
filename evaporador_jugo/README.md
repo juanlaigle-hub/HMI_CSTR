@@ -102,7 +102,7 @@ $$
 T_i = T_{\text{sat}}(p_i) + \text{EPE}(B_i), \qquad \text{EPE} \approx 2{,}5\,\frac{B}{100 - B}\ \ [\text{K}]
 $$
 
-Son 0,3 K a 12 °Brix, 1,7 K a 40 °Brix y 5,8 K a 70 °Brix. $T_{\text{sat}}$ sale de la ecuación de Antoine para el agua. El ΔT disponible para transferir calor es
+Son 0,3 K a 12 °Brix, 1,7 K a 40 °Brix y 5,8 K a 70 °Brix. Es la ley ebulloscópica de una solución ideal, $\Delta T = K_b\,m$, con $K_b$ = 0,512 K·kg/mol del agua y una masa molar media de los azúcares de unos 205 g/mol (fructosa, glucosa y sacarosa). $T_{\text{sat}}$ sale de la ecuación de Antoine para el agua. El ΔT disponible para transferir calor es
 
 $$
 \sum_i \Delta T_i = T_s - T_{cw} - \sum_i \text{EPE}_i - \Delta T_c
@@ -185,6 +185,14 @@ Con un 14 % del jugo evaporado en el 1<sup>er</sup> efecto, se recupera alrededo
 | Perfil típico | 94 / 85 / 75 / 62 / 42 °C · 80 / 57 / 37 / 20 / 6 kPa · 14 / 17 / 22 / 33 / 70 °Brix |
 | $c_p$, $\lambda$ | 3,8 kJ/(kg·K), 2330 kJ/kg |
 | Ensuciamiento | reduce $U_iA_i$ en 60 % del valor indicado en el 1<sup>er</sup> efecto y en 100 % en el 5º, porque los efectos concentrados se ensucian más |
+
+### Simplificaciones del modelo
+
+- **EPE sin corrección por presión.** Se usa el $K_b$ del agua a presión atmosférica en todos los efectos. Como $K_b \propto T_b^2/\lambda$, a los 6 kPa del 5º efecto la EPE real sería alrededor de un 30 % menor. A alta concentración la solución deja de ser ideal y eso la aumenta, así que los dos efectos se compensan en parte.
+- **Calor latente constante** (2330 kJ/kg). En realidad va de unos 2270 kJ/kg a 94 °C a 2415 kJ/kg a 36 °C, un ±3 %.
+- **Factor de concentración de la cinética**, $e^{3(x-0{,}12)}$: es una forma empírica para que el daño crezca con los °Brix, como se observa en los concentrados. Igual que $k_0$, está calibrado y no medido.
+- **Aromas:** la expresión exponencial es la destilación de Rayleigh para un componente diluido, con $\alpha$ como volatilidad relativa efectiva. El valor 9 es una calibración, no un dato de un aroma en particular.
+- **Condensador** con temperatura de agua constante y **calandrias** sin dinámica térmica (ver abajo).
 
 ## 9. Integración numérica
 

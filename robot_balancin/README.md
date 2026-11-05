@@ -16,7 +16,7 @@ Abre `robot.html` en el navegador con doble clic. three.js y MathJax están incl
 
 Experimentos sugeridos:
 
-1. **Fase no mínima:** pon cámara lenta ×¼ y "Avanzar 1,5 m". Las ruedas retroceden unos 4 cm antes de avanzar.
+1. **Fase no mínima:** pon cámara lenta ×¼ y "Avanzar 1,5 m". Las ruedas retroceden unos 3 cm antes de avanzar.
 2. **Altura y estabilidad:** al subir las patas, el polo inestable se acerca al origen. Un péndulo más alto cae más lento y es más fácil de equilibrar.
 3. **LQR sin recalcular:** desactiva "Recalcular el LQR", sube las patas al máximo y da un empujón. La K vieja ya no es la óptima para ese robot.
 4. **R grande:** con $R$ = 100 el controlador ahorra par. Los polos se acercan al eje imaginario y la respuesta se vuelve lenta y amplia.
@@ -148,7 +148,7 @@ $$
 z = \pm\sqrt{\frac{M g \ell}{c + b\,r}}
 $$
 
-El cero positivo, de unos 4,6 s⁻¹ con los valores por defecto, hace que el sistema sea **de fase no mínima**. Para avanzar, el robot primero tiene que inclinarse hacia adelante, y para eso mueve las ruedas un poco **hacia atrás**. En la simulación, al pedir un escalón de 1,5 m las ruedas retroceden unos 4 cm antes de avanzar.
+El cero positivo, de unos 4,6 s⁻¹ con los valores por defecto, hace que el sistema sea **de fase no mínima**. Para avanzar, el robot primero tiene que inclinarse hacia adelante, y para eso mueve las ruedas un poco **hacia atrás**. En la simulación, al pedir un escalón de 1,5 m las ruedas retroceden unos 3 cm antes de avanzar.
 
 ## 5. Giro y reparto entre ruedas
 

@@ -150,7 +150,7 @@ $$
 T_{\text{neto}}(\theta) = TF(\theta)\cdot\text{PRL}(\theta) - M\,\sin(\theta - \theta_0)
 $$
 
-$M$ es el momento máximo de los contrapesos, y $\theta_0$ se alinea con el máximo del factor de torque. La capacidad del reductor C-320 es de 320 000 lb·in, es decir, 36,2 kN·m. Con $M \approx$ 60 kN·m los picos de subida y de bajada quedan parecidos, en unos 34 kN·m. Con $M$ = 25 kN·m el pico pasa los 50 kN·m.
+$M$ es el momento máximo de los contrapesos, y $\theta_0$ se alinea con el máximo del factor de torque. Es la forma de la norma API 11E con el desbalance estructural $B$ igual a cero. La capacidad del reductor C-320 es de 320 000 lb·in, es decir, 36,2 kN·m. Con $M \approx$ 60 kN·m los picos quedan parecidos: unos 34 kN·m en la subida y 27 kN·m en la bajada. Con $M$ = 25 kN·m el pico pasa los 50 kN·m.
 
 ## 6. Producción, nivel de fluido y controlador de bombeo (POC)
 
