@@ -1,0 +1,5 @@
+modelo,MAE prueba,MAE ensayo B
+Ingenuo (°Brix = 70),1.36,14.3
+Físico (EPE + balance),1.02,1.73
+Ridge (sensores + físicos),0.65,2.08
+Gradient boosting monótono,0.54,1.05
