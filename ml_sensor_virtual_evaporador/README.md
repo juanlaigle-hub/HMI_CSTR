@@ -8,7 +8,7 @@ la planta ya tiene (temperaturas, presiones y caudales):
 Este ejercicio es independiente: no modifica el simulador de `evaporador_jugo/`. Usa una **copia de su núcleo
 físico** para generar los datos (`datos/simulador_evaporador.js`).
 
-**Video de la demo:** [`demo_sensor_virtual.mp4`](demo_sensor_virtual.mp4).
+**Video de la demo:** [`demo_sensor_virtual.mp4`](demo_sensor_virtual.mp4) (160 s).
 **Notebook ejecutado:** [`notebook/entrenamiento_sensor_virtual.ipynb`](notebook/entrenamiento_sensor_virtual.ipynb).
 
 ## Resultados
@@ -138,3 +138,8 @@ Con los botones se puede simular la falla del refractómetro y pasar el control 
 - El °Brix por EPE depende de medir bien la presión del 5º efecto: a 6 kPa, un error de 0,3 kPa equivale a casi
   0,6 °C de temperatura de saturación.
 - El sensor virtual no reemplaza al laboratorio: lo complementa entre análisis, y cada análisis sirve para controlarlo.
+- Los modelos de HMF y color usan un promedio de 15 min, coherente con el tiempo de residencia. En un transitorio rápido,
+  como el cambio de alimentación al pasar el control al sensor virtual, la estimación se atrasa unos minutos respecto
+  del valor real.
+- Más allá de unos 76 °Brix actúa el enclavamiento. El modelo del evaporador no es válido en sobreconcentración, así
+  que los datos no incluyen esa zona.
