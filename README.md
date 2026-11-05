@@ -77,7 +77,7 @@ and a README with the step-by-step of how the same project is done in a real pla
 | Folder | Industrial problem | ML approach | Key result | Video |
 |---|---|---|---|---|
 | `ml_cartas_dinamometricas/` | Automatic diagnosis of sucker-rod pump faults from downhole dynamometer cards (7 classes) | Gradient boosting on normalized card shape + physical features; compared with engineer rules, MLP and surface cards | 98.7 % accuracy, 96.7 % on unseen out-of-range wells (rules: 50 %; surface card: 34 %) | [`demo_clasificador.mp4`](ml_cartas_dinamometricas/demo_clasificador.mp4) |
-| `ml_sensor_virtual_evaporador/` | Soft sensor for concentrate °Brix (refractometer backup) and HMF/colour between lab analyses | Monotonic gradient boosting with physics features (BPE, mass balance); gray-box Arrhenius model calibrated with 120 lab samples | °Brix MAE 1.05 on an unseen step test (naive 14.3); HMF R² 0.89 recovering the kinetic constant | [`demo_sensor_virtual.mp4`](ml_sensor_virtual_evaporador/demo_sensor_virtual.mp4) |
+| `ml_sensor_virtual_evaporador/` | Soft sensor for concentrate °Brix (refractometer backup) and HMF/colour between lab analyses | Sign-constrained linear model with physics features (BPE, mass balance), chosen by grouped cross-validation; gray-box Arrhenius model calibrated with 120 lab samples | °Brix MAE 1.34 on an unseen step test (naive 6.45) with sign-constrained physics; HMF R² 0.93 recovering the kinetic constant | [`demo_sensor_virtual.mp4`](ml_sensor_virtual_evaporador/demo_sensor_virtual.mp4) |
 
 ## How to Use
 
