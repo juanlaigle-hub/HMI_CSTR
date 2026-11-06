@@ -1,8 +1,12 @@
 # CSTR HMI Training Simulator
 
+[![Pruebas del modelo](https://github.com/juanlaigle-hub/HMI_CSTR/actions/workflows/pruebas.yml/badge.svg)](https://github.com/juanlaigle-hub/HMI_CSTR/actions/workflows/pruebas.yml)
+
 Operator-training simulator for a jacketed Continuous Stirred Tank Reactor (CSTR) running the exothermic reaction A → B. A Dash HMI in ISA-101 style is linked to an animated 3D view of the reactor, both driven by the same mass and energy balances.
 
-> The simulators and ML projects in this repository are now maintained in two dedicated repositories:
+<p><img src="assets/cstr-1.jpg" width="49%" alt="3D view of reactor R-101 in normal operation"> <img src="assets/cstr-2.jpg" width="49%" alt="3D view of reactor R-101 with the high-temperature alarm"></p>
+
+> More 3D simulators (quadcopter, self-balancing robot, sucker-rod pump, juice evaporator) and two industrial ML projects live in
 > **[Simulations3D](https://github.com/juanlaigle-hub/Simulations3D)** ([live site](https://juanlaigle-hub.github.io/Simulations3D/)) and
 > **[MachineLearningApplications](https://github.com/juanlaigle-hub/MachineLearningApplications)** ([live site](https://juanlaigle-hub.github.io/MachineLearningApplications/)).
 
@@ -64,28 +68,6 @@ k0 and UA are computed so that the base case (F_in = 10 L/min, F_j = 20 L/min, T
 is a stable steady state with T = 310 K and X_A = 0.15. With the +5 K preheater failure and no operator action
 the reactor runs away to about 339 K; raising F_j to 40 L/min and lowering T_j,in to 285 K brings it back to about 316 K.
 
-## Also in this repository: 3D control simulators
-
-Four standalone simulators open directly in a browser and work offline. Each has an optional "∑ Ver la matemática" panel that shows the equations with live values and highlights the term that changes when a control is moved, plus a "▶ Demo guiada" button.
-
-| Folder | Simulator | Control | Math |
-|---|---|---|---|
-| `drone_3d/` | 450 mm quadcopter, 6-DOF rigid-body dynamics, wind gusts, payload, motor failure | Cascaded PID (position → attitude) + X mixer | [`drone_3d/README.md`](drone_3d/README.md) |
-| `robot_balancin/` | Two-wheeled self-balancing robot with adjustable legs | LQR solved in the browser, with live closed-loop poles | [`robot_balancin/README.md`](robot_balancin/README.md) |
-| `bombeo_mecanico/` | Sucker-rod pumping unit (oil & gas): beam pump, 1500 m elastic rod string, downhole pump with valves, live dynamometer cards | Pump-off controller (POC) with a variable-speed drive; counterbalance and gearbox torque | [`bombeo_mecanico/README.md`](bombeo_mecanico/README.md) |
-| `evaporador_jugo/` | 5-effect falling-film evaporator for apple juice concentrate (12 → 70 °Brix) with aroma recovery and thermal damage (HMF, colour) | PI control of product °Brix with the feed rate; steam economy, fouling and vacuum loss | [`evaporador_jugo/README.md`](evaporador_jugo/README.md) |
-
-## Also in this repository: machine-learning exercises
-
-Two industrial ML exercises built on top of the simulators. Each one has its own folder, a dataset generator with
-phenomenology checks, an executed training notebook, an exported model running live in the browser, a guided demo
-and a README with the step-by-step of how the same project is done in a real plant.
-
-| Folder | Industrial problem | ML approach | Key result |
-|---|---|---|---|
-| `ml_cartas_dinamometricas/` | Automatic diagnosis of sucker-rod pump faults from downhole dynamometer cards (7 classes) | Gradient boosting on normalized card shape + physical features; compared with engineer rules, MLP and surface cards | 98.7 % accuracy, 96.7 % on unseen out-of-range wells (rules: 50 %; surface card: 34 %) |
-| `ml_sensor_virtual_evaporador/` | Soft sensor for concentrate °Brix (refractometer backup) and HMF/colour between lab analyses | Sign-constrained linear model with physics features (BPE, mass balance), chosen by grouped cross-validation; gray-box Arrhenius model calibrated with 120 lab samples | °Brix MAE 1.34 on an unseen step test (naive 6.45) with sign-constrained physics; HMF R² 0.93 recovering the kinetic constant |
-
 ## How to operate
 
 - Manipulated variables (MV): coolant flow F_j, feed flow F_in, coolant inlet temperature T_j,in, agitator speed.
@@ -93,6 +75,14 @@ and a README with the step-by-step of how the same project is done in a real pla
 - Trends: temperature, conversion, heat generation and heat removal.
 
 The HMI runs a local web server on port 8050; make sure no other application is using that port.
+
+## Tests
+
+`tests/test_cstr.py` checks the model on every push: exact base steady state, thermal stability at the operating point, runaway to about 339 K after the preheater failure, recovery to about 316 K, and the effect of agitation and fouling on UA.
+
+```bash
+python -m unittest discover -s tests -v
+```
 
 ## Documentation
 
